@@ -26,6 +26,8 @@ s2n-quic = { version = "1.72.0" }
 serde = "1.0.228"
 tracing = "0.1.44"
 tracing-subscriber = "0.3.22"
+dns-lookup = "3.0.1"
+rand = "0.10.0"
 
 [[bin]]
 name = "operator"

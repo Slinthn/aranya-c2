@@ -26,7 +26,7 @@ function do_seal(payload bytes) struct Envelope {
     return Envelope {
         parent_id: parent_id,
         author_id: device_id,
-        command_id: myffi::haha(),
+        command_id: myffi::randomid(),
         payload: payload,
         signature: payload,
     }
@@ -45,7 +45,7 @@ command Init {
         return Envelope {
             parent_id: parent_id,
             author_id: device_id,
-            command_id: myffi::nuu(),
+            command_id: myffi::nullid(),
             payload: payload,
             signature: payload,
         }

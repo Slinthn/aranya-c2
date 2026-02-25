@@ -34,7 +34,7 @@ use crate::config;
 
 pub type C2VMPolicy = VmPolicy<DefaultEngine<Rng>>; 
 
-struct C2PolicyStore {
+pub struct C2PolicyStore {
     policy: C2VMPolicy
 }
 
@@ -61,10 +61,10 @@ pub struct MyFfi;
 
 #[ffi(module = "myffi")]
 impl MyFfi {
-    #[ffi_export(def = "function haha() id")]
-    pub(crate) fn haha<E: aranya_crypto::Engine>(
+    #[ffi_export(def = "function randomid() id")]
+    pub(crate) fn randomid<E: aranya_crypto::Engine>(
         &self,
-        ctx: &CommandContext,
+        _ctx: &CommandContext,
         _eng: &mut E
     ) -> Result<aranya_crypto::policy::CmdId, aranya_policy_vm::MachineError> {
         let mut bytes = [0u8; 32];
@@ -77,19 +77,20 @@ impl MyFfi {
     #[ffi_export(def = "function nullid() id")]
     pub(crate) fn nullid<E: aranya_crypto::Engine>(
         &self,
-        ctx: &CommandContext,
+        _ctx: &CommandContext,
         _eng: &mut E
     ) -> Result<aranya_crypto::policy::CmdId, aranya_policy_vm::MachineError> {
         let mut bytes = [0u8; 32];
+        bytes[0] = 128;
         Ok(aranya_crypto::policy::CmdId::from(bytes))
     }
 }
 
 pub struct Client<T: Sink<VmEffect>> {
-    cs: Arc<Mutex<ClientState<C2PolicyStore, MemStorageProvider>>>,
+    pub cs: Arc<Mutex<ClientState<C2PolicyStore, MemStorageProvider>>>,
     pub sink: Arc<Mutex<T>>,
-    syncer: Arc<Mutex<Syncer<C2PolicyStore, MemStorageProvider, T>>>,
-    graph: Option<GraphId>
+    pub syncer: Arc<Mutex<Syncer<C2PolicyStore, MemStorageProvider, T>>>,
+    pub graph: Option<GraphId>
 }
 
 impl<T: Sink<VmEffect>> Client<T>
@@ -227,10 +228,6 @@ where
         return Ok(graph);
     }
 
-    // pub async fn set_graph(&mut self, graph: GraphId) {
-    //     self.graph = Some(graph);
-    // }
-
     pub async fn do_action(&self, action: <C2VMPolicy as Policy>::Action<'_>) {
         let csclone = Arc::clone(&self.cs);
         let mut cs = csclone.lock().await;
@@ -289,7 +286,8 @@ where
         let _ = syncer.subscribe(&mut *cs, req, 5, u64::MAX, addr).await;
     }
 
-    pub async fn push_graph(&mut self) {
+    // TODO: TEMPORARY|
+    pub async fn subscribe_to_locked(&mut self, addr: SocketAddr, syncer: &mut Syncer<C2PolicyStore, MemStorageProvider, T>) {
         let csclone = Arc::clone(&self.cs);
         let mut cs = csclone.lock().await;
         let sinkclone = Arc::clone(&self.sink);
@@ -303,8 +301,25 @@ where
             }
         };
 
+        let mut rng = Rng::new();
+        let req = SyncRequester::new(graph, &mut rng);
+
+        // let mut syncer = self.syncer.lock().await;
+        let _ = syncer.subscribe(&mut *cs, req, 5, u64::MAX, addr).await;
+    }
+
+
+    pub async fn push_graph(&mut self) {
+        let graph = match self.graph {
+            Some(graph) => graph,
+            None => {
+                print!("Cannot do this action without creating a graph.\n");
+                return;
+            }
+        };
+
         let mut syncer = self.syncer.lock().await;
-        let _ = syncer.push(graph);
+        let _ = syncer.send_push(graph);
     }
 
     pub fn set_graph(&mut self, graph: GraphId) {

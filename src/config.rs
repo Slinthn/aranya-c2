@@ -21,4 +21,8 @@ m0PApkfut4jt9jb+zdNdpxVs6qBKMKIbAAanvjA3AFVcw5ukw4EMzRl3
 
 pub const POLICY: &str = include_str!("policy.md");
 
-pub const GRAPH: &str = "11111111111111111111111111111111111111111111";
+pub const GRAPH: &str = "9cfBkPsoQ2NPHYPi7b69bcQG8FKfNc33k2UfRxiPFyd9";
+
+pub const PORT: u16 = 4445;
+
+pub const DOMAIN: &str = "test.slin.ie";
