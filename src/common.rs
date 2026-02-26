@@ -23,9 +23,17 @@ use aranya_crypto::{
     default::DefaultEngine,
     id::IdExt
 };
+use aranya_crypto::Csprng;
 use aranya_policy_compiler::Compiler;
 use aranya_policy_lang::lang::parse_policy_document;
-use aranya_policy_vm::{Machine, ffi::FfiModule};
+use aranya_policy_vm::{
+    Machine,
+    ffi::FfiModule,
+    CommandContext,
+    MachineError,
+    MachineErrorType,
+    ffi::ffi
+};
 use aranya_quic_syncer::{Syncer, run_syncer};
 use tokio::{sync::{Mutex, mpsc}};
 use s2n_quic::Server;
@@ -55,8 +63,7 @@ impl PolicyStore for C2PolicyStore {
 impl C2PolicyStore {
 }
 
-use aranya_crypto::Csprng;
-use aranya_policy_vm::{CommandContext, MachineError, MachineErrorType, ffi::ffi};
+
 pub struct MyFfi;
 
 #[ffi(module = "myffi")]
@@ -285,29 +292,6 @@ where
         let mut syncer = self.syncer.lock().await;
         let _ = syncer.subscribe(&mut *cs, req, 5, u64::MAX, addr).await;
     }
-
-    // TODO: TEMPORARY|
-    pub async fn subscribe_to_locked(&mut self, addr: SocketAddr, syncer: &mut Syncer<C2PolicyStore, MemStorageProvider, T>) {
-        let csclone = Arc::clone(&self.cs);
-        let mut cs = csclone.lock().await;
-        let sinkclone = Arc::clone(&self.sink);
-        let sink: &mut T = &mut *sinkclone.lock().await;
-
-        let graph = match self.graph {
-            Some(graph) => graph,
-            None => {
-                print!("Cannot do this action without creating a graph.\n");
-                return;
-            }
-        };
-
-        let mut rng = Rng::new();
-        let req = SyncRequester::new(graph, &mut rng);
-
-        // let mut syncer = self.syncer.lock().await;
-        let _ = syncer.subscribe(&mut *cs, req, 5, u64::MAX, addr).await;
-    }
-
 
     pub async fn push_graph(&mut self) {
         let graph = match self.graph {

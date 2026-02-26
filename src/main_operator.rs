@@ -14,6 +14,7 @@ use aranya_runtime::{Sink, VmEffect, vm_action};
 use tokio::time::{sleep, Duration};
 use aranya_policy_text::text;
 use tokio::sync::Mutex;
+use aranya_policy_text::Text;
 
 struct OperatorSink;
 
@@ -93,6 +94,10 @@ fn main() {
                     let (_, args) = s.split_once(' ').unwrap();
                     print!("{}\n", args);
                     let aranyal = &mut *aranyac.lock().await;
+
+                    use std::str::FromStr;
+                    let text = Text::from_str(args).unwrap();
+
                     aranyal.do_action(vm_action!(execute_command(text!("whoami")))).await;
                 }
             }
@@ -111,13 +116,13 @@ fn main() {
             aranyal.subscribe_to(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 3)), 4445)).await;
             aranyal.subscribe_to(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 4)), 4445)).await;
             aranyal.subscribe_to(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 5)), 4445)).await;
-            // aranyal.push_graph().await;
+            aranyal.push_graph().await;
 
-            // aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 1)), 4445)).await;
-            // aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 2)), 4445)).await;
-            // aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 3)), 4445)).await;
-            // aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 4)), 4445)).await;
-            // aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 5)), 4445)).await;
+            aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 1)), 4445)).await;
+            aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 2)), 4445)).await;
+            aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 3)), 4445)).await;
+            aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 4)), 4445)).await;
+            aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 5)), 4445)).await;
 
             print!("Subscribed & Pushed\n")
             
