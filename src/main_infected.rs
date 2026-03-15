@@ -73,39 +73,11 @@ fn main() {
     let mut ips: Vec<std::net::IpAddr> =
         dns_lookup::lookup_host(config::DOMAIN).unwrap().collect();
     
-    // use rand::prelude::*;
-    // let mut rng = rand::rng();
-
-    
-    // let randi = rng.random_range(0..ips.len());
-    // let sync = ips[randi];
-
-
-    // TODO: TEMPORARY
-    use std::env;
-
-    let args: Vec<String> = env::args().collect();
-
-    let bind = args[1].parse().expect("IPv4 address in wrong format i.e. 127.0.0.1:1234");
-
     // let bind = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), config::PORT);
 
-    
-    use rand::prelude::SliceRandom;
-
-
-    ips = Vec::new();
-    // ips.push("127.0.1.1".parse().unwrap());
-    ips.push("127.0.0.2".parse().unwrap());
-    // ips.push("127.0.1.3".parse().unwrap());
-    // ips.push("127.0.1.4".parse().unwrap());
-    // ips.push("127.0.1.5".parse().unwrap());
-
-    let mut rng = rand::rng();
-    ips.shuffle(&mut rng);
-
-    let mut subbedips: Vec<std::net::IpAddr> = Vec::new();
-
+    // TODO: TEMPORARY
+    let args: Vec<String> = std::env::args().collect();
+    let bind = args[1].parse().expect("IPv4 address in wrong format i.e. 127.0.0.1:1234");
     // TODO: END TEMPORARY
 
     rt.block_on(async move {
@@ -157,56 +129,6 @@ fn main() {
             // Stall for a random amount of time
             sleep(Duration::from_millis(rand::random_range(1000..2000))).await;
 
-            // match ips.pop() {
-            //     // Subscribe to predefined ip list
-            //     Some(ip) => {
-            //         let aranyac = Arc::clone(&aranyam);
-            //         let aranyal = &mut *aranyac.lock().await;
-
-            //         if ip == bind.ip() {
-            //             continue
-            //         }
-
-            //         match aranyal.subscribe_to(SocketAddr::new(ip, config::PORT)).await {
-            //             Ok(()) => subbedips.push(ip),
-            //             Err(_) => {
-            //                 println!("Cannot sub to {:?}", ip);
-            //             }
-            //         };
-            //    },
-            //     // Start subscribing back to subscribers
-            //     None => {
-            //         let aranyac = Arc::clone(&aranyam);
-            //         let aranyal = &mut *aranyac.lock().await;
-
-            //         // Get list of subscribers
-            //         let mut subs: Vec<std::net::IpAddr> = Vec::new();
-            //         {
-            //             let mut syncer = aranyal.syncer.lock().await;
-            //             for (&(addr, _sub_graph_id), subscription) in &syncer.subscriptions {
-            //                 // No need to sub if already subbed
-            //                 if subbedips.contains(&addr.ip()) {
-            //                     continue;
-            //                 }
-                            
-            //                 subs.push(addr.ip());
-            //             }
-            //         }
-
-            //         // Subscribe to the first subscriber
-            //         match subs.pop() {
-            //             Some(sub) => {
-            //                 match aranyal.subscribe_to(SocketAddr::new(sub, config::PORT)).await {
-            //                     Ok(()) => subbedips.push(sub),
-            //                     Err(_) => {}
-            //                 };
-            //                 subbedips.push(sub);
-            //             },
-            //             None => {}
-            //         };
-            //     }
-            // };
-
             // Sync up with some nodes
             let aranyac = Arc::clone(&aranyam);
             let aranyal = &mut *aranyac.lock().await;
@@ -227,36 +149,7 @@ fn main() {
                 ).await;
             }
 
-
-            // aranyal.push_graph();
-
-            use rand::seq::IndexedRandom;
-            // match subbedips.choose(&mut rand::rng()) {
-            //     Some(ip) => {
-            //         let _ = tokio::time::timeout(Duration::from_millis(5000), aranyal.sync_with(SocketAddr::new(*ip, config::PORT))).await;
-            //     },
-            //     None => {}
-            // }
-
             aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
 
             print!("{:?} | Loop end\n", bind);
         }

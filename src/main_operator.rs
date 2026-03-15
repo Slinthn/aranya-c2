@@ -221,57 +221,10 @@ fn main() {
             let aranyac = Arc::clone(&aranyam);
             let aranyal = &mut *aranyac.lock().await;
 
-            // tokio::time::timeout(Duration::from_millis(1000), async {
-            //     aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 1)), 4445)).await;
-            // }).await;
-
-            // tokio::time::timeout(Duration::from_millis(1000), async {
-            //     aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 2)), 4445)).await;
-            // }).await;
-
-            // tokio::time::timeout(Duration::from_millis(1000), async {
-            //     aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 3)), 4445)).await;
-            // }).await;
-
-            // tokio::time::timeout(Duration::from_millis(1000), async {
-            //     aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 4)), 4445)).await;
-            // }).await;
-
-            // tokio::time::timeout(Duration::from_millis(1000), async {
-            //     aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 5)), 4445)).await;
-            // }).await;
-
-            // let _ = tokio::time::timeout(Duration::from_millis(50000), async {
-            //     let _ = aranyal
-            //         .subscribe_to(SocketAddr::new(
-            //             IpAddr::V4(Ipv4Addr::new(127, 0, 1, 2)),
-            //             4445,
-            //         ))
-            //         .await;
-            //     // aranyal.sync_with(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 2)), 4445)).await;
-            //     aranyal.push_graph().await;
-            // })
-            // .await;
-
             aranyal
                 .do_ephemeral_action(vm_action!(query_devices()))
                 .await;
 
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
-            // aranyal.do_action(vm_action!(heartbeat())).await;
             console_clear();
             print_header(aranyal);
             print_nodes(aranyal).await;
