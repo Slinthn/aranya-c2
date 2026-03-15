@@ -1,3 +1,7 @@
+use aranya_runtime::{ClientState, linear::{LinearStorageProvider, libc::FileManager}};
+
+use crate::common::C2PolicyStore;
+
 pub const CERTIFICATE: &str = r"
 -----BEGIN CERTIFICATE-----
 MIIBXjCCAQSgAwIBAgIUUPdWqg2k+pI1DAUFPi+iickl5rEwCgYIKoZIzj0EAwIw
@@ -26,3 +30,8 @@ pub const GRAPH: &str = "9cfBkPsoQ2NPHYPi7b69bcQG8FKfNc33k2UfRxiPFyd9";
 pub const PORT: u16 = 4445;
 
 pub const DOMAIN: &str = "test.slin.ie";
+
+// File storage for now
+pub type C2StorageProvider = LinearStorageProvider<FileManager>;
+
+pub type C2ClientState = ClientState<C2PolicyStore, C2StorageProvider>;

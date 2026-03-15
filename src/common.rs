@@ -3,6 +3,11 @@ use std::{
     net::SocketAddr
 };
 
+use aranya_libc::Path;
+use aranya_runtime::linear::{
+    LinearStorageProvider,
+    libc::FileManager
+};
 use aranya_runtime::{
     ClientState,
     GraphId,
@@ -12,10 +17,8 @@ use aranya_runtime::{
     Sink,
     VmEffect,
     VmPolicy,
-    memory::MemStorageProvider,
     Policy,
-    vm_action,
-    SyncRequester
+    vm_action
 };
 use aranya_crypto::{
     DeviceId,
@@ -23,7 +26,7 @@ use aranya_crypto::{
     default::DefaultEngine,
     id::IdExt
 };
-use aranya_crypto::Csprng;
+use aranya_crypto::{CmdId, Csprng, Engine};
 use aranya_policy_compiler::Compiler;
 use aranya_policy_lang::lang::parse_policy_document;
 use aranya_policy_vm::{
@@ -31,14 +34,18 @@ use aranya_policy_vm::{
     ffi::FfiModule,
     CommandContext,
     MachineError,
-    MachineErrorType,
     ffi::ffi
 };
-use aranya_quic_syncer::{Syncer, run_syncer};
+use aranya_quic_syncer::{
+    Syncer,
+    QuicSyncError
+};
+use rand::RngExt;
 use tokio::{sync::{Mutex, mpsc}};
-use s2n_quic::Server;
+use chrono::Utc;
 
-use crate::config;
+use crate::config::{self, C2ClientState, C2StorageProvider};
+use crate::c2syncer::{run_c2syncer, C2Syncer, c2sync};
 
 pub type C2VMPolicy = VmPolicy<DefaultEngine<Rng>>; 
 
@@ -63,48 +70,87 @@ impl PolicyStore for C2PolicyStore {
 impl C2PolicyStore {
 }
 
+pub struct C2Ffi;
 
-pub struct MyFfi;
-
-#[ffi(module = "myffi")]
-impl MyFfi {
+#[ffi(module = "c2")]
+impl C2Ffi {
     #[ffi_export(def = "function randomid() id")]
-    pub(crate) fn randomid<E: aranya_crypto::Engine>(
+    pub(crate) fn randomid<E: Engine>(
         &self,
         _ctx: &CommandContext,
-        _eng: &mut E
-    ) -> Result<aranya_crypto::policy::CmdId, aranya_policy_vm::MachineError> {
+        _eng: &E
+    ) -> Result<CmdId, MachineError> {
         let mut bytes = [0u8; 32];
         // NOTE: It doesn't have to be this secure lol
-        let mut rng = Rng;
-        rng.fill_bytes(&mut bytes);
-        Ok(aranya_crypto::policy::CmdId::from(bytes))
+        Rng.fill_bytes(&mut bytes);
+        Ok(CmdId::from(bytes))
     }
 
     #[ffi_export(def = "function nullid() id")]
     pub(crate) fn nullid<E: aranya_crypto::Engine>(
         &self,
         _ctx: &CommandContext,
-        _eng: &mut E
-    ) -> Result<aranya_crypto::policy::CmdId, aranya_policy_vm::MachineError> {
+        _eng: &E
+    ) -> Result<CmdId, MachineError> {
         let mut bytes = [0u8; 32];
         bytes[0] = 128;
-        Ok(aranya_crypto::policy::CmdId::from(bytes))
+        Ok(CmdId::from(bytes))
+    }
+
+    #[ffi_export(def = "function current_timestamp() int")]
+    pub(crate) fn current_timestamp<E: aranya_crypto::Engine>(
+        &self,
+        _ctx: &CommandContext,
+        _eng: &E
+    ) -> Result<i64, MachineError> {
+        Ok(Utc::now().timestamp())
     }
 }
 
-pub struct Client<T: Sink<VmEffect>> {
-    pub cs: Arc<Mutex<ClientState<C2PolicyStore, MemStorageProvider>>>,
-    pub sink: Arc<Mutex<T>>,
-    pub syncer: Arc<Mutex<Syncer<C2PolicyStore, MemStorageProvider, T>>>,
+pub(crate) struct TestSink {
+    cmds: Vec<Box<[u8]>>
+}
+
+impl TestSink {
+    fn new() -> Self {
+        Self {
+            cmds: Vec::new()
+        }
+    }
+}
+
+impl Sink<&[u8]> for TestSink {
+    fn begin(&mut self) {}
+    
+    fn consume(&mut self, effect: &[u8]) {
+        self.cmds.push(effect.into());
+    }
+
+    fn rollback(&mut self) {}
+    
+    fn commit(&mut self) {}
+}
+
+// Shorthand for Arc Mutex just to aid readability
+pub type AM<T> = Arc<Mutex<T>>;
+
+pub struct C2Client<T: Sink<VmEffect>> {
+    pub c2syncerm: AM<C2Syncer<T>>,
+    pub cs: AM<C2ClientState>,
+    pub sink: AM<T>,
+    pub syncer: AM<Syncer<C2PolicyStore, C2StorageProvider, T>>,
     pub graph: Option<GraphId>
 }
 
-impl<T: Sink<VmEffect>> Client<T>
+impl<T: Sink<VmEffect>> C2Client<T>
 where 
     T: Sink<VmEffect> + Send + Sync + 'static
 {
-    pub fn init(policy_data: String, bind_addr: SocketAddr, clientsink: T) -> Result<Self, ()> {
+    pub fn init(
+        policy_data: String,
+        bind_addr: SocketAddr,
+        clientsink: T
+    ) -> Result<Self, ()> {
         // Compile policy
         let policy = match parse_policy_document(policy_data.as_str()) {
             Ok(v) => v,
@@ -124,7 +170,7 @@ where
             aranya_perspective_ffi::FfiPerspective::SCHEMA,
             // aranya_crypto_ffi::Ffi::<Store>::SCHEMA,
             // aranya_idam_ffi::Ffi::<Store>::SCHEMA,
-            MyFfi::SCHEMA
+            C2Ffi::SCHEMA
         ]).compile() {
             Ok(v) => v,
             Err(v) => {
@@ -139,6 +185,98 @@ where
         let mut r = Rng::new();
         let id = DeviceId::random(&mut r);
 
+        // TODO: AFC test
+        // let identity = IdentityKey::<DefaultCipherSuite>::new(&mut engine);
+        // let encryption = EncryptionKey::<DefaultCipherSuite>::new(&mut engine);
+
+        // let identity2 = IdentityKey::<DefaultCipherSuite>::new(&mut engine);
+        // let encryption2 = EncryptionKey::<DefaultCipherSuite>::new(&mut engine);
+
+        // let ch1 = UniChannel {
+        //     parent_cmd_id: CmdId::default(),
+        //     our_sk: &encryption,
+        //     their_pk: &encryption2.public().unwrap(),
+        //     seal_id: identity.id().unwrap(),
+        //     open_id: identity2.id().unwrap(),
+        //     label_id: LabelId::default()
+        // };
+
+        // let ch2 = UniChannel {
+        //     parent_cmd_id: ch1.parent_cmd_id,
+        //     our_sk: &encryption2,
+        //     their_pk: &encryption.public().unwrap(),
+        //     seal_id: identity2.id().unwrap(),
+        //     open_id: identity.id().unwrap(),
+        //     label_id: ch1.label_id
+        // };
+        
+
+        // use aranya_fast_channels::{
+        //     AfcState, AranyaState, Channel, Cli.ent, Directed, Error, LocalChannelId,
+        //     crypto::Aes256Gcm,
+        //     shm::{Flag, Mode, Path, ReadState, WriteState},
+        // };
+
+        // // TODO: Fix OpenOnly here
+        // let write_state1: WriteState<DefaultCipherSuite, Rng> = WriteState::open(
+        //     Path::from_bytes(b"/testing3\x00").unwrap(),
+        //     Flag::OpenOnly, Mode::ReadWrite, 42, Rng
+        // ).unwrap();
+
+        // let state1 = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
+        //     ReadState::open(
+        //         Path::from_bytes(b"/testing3\x00").unwrap(),
+        //         Flag::OpenOnly, Mode::ReadWrite, 42
+        //     ).unwrap()
+        // );
+
+        // let (mut eng, _) = DefaultEngine::from_entropy(Rng);
+        // let UniSecrets { author, peer } = UniSecrets::new(&mut eng, &ch1).unwrap();
+
+        // let channel1 = write_state1.add(Directed::SealOnly {
+        //     seal: UniSealKey::from_author_secret(&ch1, author).unwrap().into_raw_key()
+        // }, ch1.label_id, identity2.id().unwrap()).unwrap();
+
+
+        // let ciphertext = {
+        //     let mut dest = vec!(0u8; "Hello".len() + Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
+        //     let mut ctx = state1.setup_seal_ctx(channel1).unwrap();
+        //     state1.seal(&mut ctx, &mut dest, "Hello".as_bytes()).unwrap();
+        //     dest
+        // };
+
+        // print!("{:?}\n", ciphertext);
+
+
+        // let write_state2: WriteState<DefaultCipherSuite, Rng> = WriteState::open(
+        //     Path::from_bytes(b"/testing4\x00").unwrap(),
+        //     Flag::OpenOnly, Mode::ReadWrite, 42, Rng
+        // ).unwrap();
+    
+        // let channel2 = write_state2.add(Directed::OpenOnly {
+        //     open: UniOpenKey::from_peer_encap(&ch2, peer).unwrap().into_raw_key()
+        // }, ch1.label_id, identity.id().unwrap()).unwrap();
+
+        // let state2 = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
+        //     ReadState::open(
+        //         Path::from_bytes(b"/testing4\x00").unwrap(),
+        //         Flag::OpenOnly, Mode::ReadWrite, 42
+        //     ).unwrap()
+        // );
+
+
+        // {
+        //     let mut dest = vec!(0u8; ciphertext.len() - Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
+        //     let mut ctx = state2.setup_open_ctx(channel2).unwrap();
+        //     state2.open(&mut ctx, &mut dest, &ciphertext).unwrap();
+
+        //     print!("{:?}\n", dest);
+        
+        // }
+
+        
+        // TODO: End AFC test
+
         // TODO: figure out how to not .clone() below
         // let store = MemStore::new();
 
@@ -146,7 +284,7 @@ where
             Box::from(aranya_device_ffi::FfiDevice::new(id)),
             Box::from(aranya_envelope_ffi::Ffi),
             Box::from(aranya_perspective_ffi::FfiPerspective),
-            Box::from(MyFfi),
+            Box::from(C2Ffi),
             // Box::from(aranya_crypto_ffi::Ffi::<MemStore>::new(store.clone())),
             // Box::from(aranya_idam_ffi::Ffi::<MemStore>::new(store))
         ]) {
@@ -158,8 +296,30 @@ where
         };
 
         // Instantiate new Aranya client state
-        let ps = C2PolicyStore{ policy };
-        let ms = MemStorageProvider::new();
+        let ps = C2PolicyStore { policy };
+        
+        // TODO: Change dir name ?
+        let mut randdir = [0u8; 10];
+
+        for i in 0..10 {
+            let mut rng = rand::rng();
+            randdir[i] = rng.sample(rand::distr::Alphanumeric);
+        }
+
+        
+        let dirpath = Path::new("/tmp").join(Path::new(std::str::from_utf8(&randdir).unwrap()));
+        
+        // TODO: A custom implementation of FileManager could always require
+        //   the creation of a directory instead of having this
+        let _ = std::fs::create_dir(
+            std::path::Path::new("/tmp").join(
+                std::path::Path::new(
+                    std::str::from_utf8(&randdir).unwrap()
+                )
+            )
+        );
+
+        let ms = C2StorageProvider::new(FileManager::new(dirpath).unwrap());
         let cs = Arc::new(Mutex::new(ClientState::new(ps, ms)));
         let sink = Arc::new(Mutex::new(clientsink));
 
@@ -171,18 +331,9 @@ where
         // let cert = ck.cert.pem();
 
         // Create server for incoming sync requests
-        let server = match Server::builder()
-            .with_tls((config::CERTIFICATE, config::KEY)).unwrap()
-            .with_io(bind_addr).unwrap()
-            .start() {
-                Ok(v) => v,
-                Err(e) => {
-                    print!("Failed to start server:\n{:?}\n", e);
-                    return Err(());
-                }
-        };
 
-        let (tx, rx) = mpsc::unbounded_channel();
+
+        let (tx, _rx) = mpsc::unbounded_channel();
         let syncer = Arc::new(
             Mutex::new(
                 Syncer::new(&*config::CERTIFICATE,
@@ -195,9 +346,18 @@ where
         );
 
         // Start the Aranya syncer server
-        tokio::spawn(run_syncer(Arc::clone(&syncer), server, rx));
+        // tokio::spawn(run_syncer(Arc::clone(&syncer), server, rx));
 
-        Ok(Client {
+        let c2syncerm = Arc::new(Mutex::new(C2Syncer {
+            client: Arc::clone(&cs),
+            sink: Arc::clone(&sink),
+            connections: Vec::new()
+        }));
+
+        tokio::spawn(run_c2syncer(Arc::clone(&c2syncerm), bind_addr));
+
+        Ok(C2Client {
+            c2syncerm,
             cs,
             sink,
             syncer,
@@ -225,12 +385,13 @@ where
 
         self.graph = Some(graph);
 
-        match self.syncer.lock().await.push(graph) {
-            Ok(_) => {},
-            Err(v) => {
-                print!("Error syncing new graph:\n{:?}\n", v);
-            }
-        }
+        // TODO: Delete wtf is this? i forgot i wrote this
+        // match self.syncer.lock().await.push(graph) {
+        //     Ok(_) => {},
+        //     Err(v) => {
+        //         print!("Error syncing new graph:\n{:?}\n", v);
+        //     }
+        // }
 
         return Ok(graph);
     }
@@ -251,59 +412,75 @@ where
         }
     }
 
-    pub async fn sync_with(&mut self, addr: SocketAddr) {
+    pub async fn do_ephemeral_action(&self, action: <C2VMPolicy as Policy>::Action<'_>) {
         let csclone = Arc::clone(&self.cs);
         let mut cs = csclone.lock().await;
         let sinkclone = Arc::clone(&self.sink);
         let sink: &mut T = &mut *sinkclone.lock().await;
 
-        let graph = match self.graph {
-            Some(graph) => graph,
+        match self.graph {
+            Some(graph) => {
+                let mut msg_sink = TestSink::new();
+                let mut session = cs.session(graph).unwrap();
+                let _ = session.action(&cs, sink, &mut msg_sink, action);
+            },
             None => {
-                print!("Cannot do this action without creating a graph.\n");
-                return;
+                print!("Cannot do an action without creating a graph.\n");
             }
-        };
-
-        let mut rng = Rng::new();
-        let req = SyncRequester::new(graph, &mut rng);
-
-        let mut syncer = self.syncer.lock().await;
-        let _ = syncer.sync(&mut *cs, addr, req, sink, graph).await;
+        }
     }
 
-    pub async fn subscribe_to(&mut self, addr: SocketAddr) {
-        let csclone = Arc::clone(&self.cs);
-        let mut cs = csclone.lock().await;
-        let sinkclone = Arc::clone(&self.sink);
-        let sink: &mut T = &mut *sinkclone.lock().await;
+    pub async fn sync_with(
+        &mut self,
+        _addr: SocketAddr
+    ) {
+        // let graph = match self.graph {
+        //     Some(graph) => graph,
+        //     None => {
+        //         print!("Cannot do this action without creating a graph.\n");
+        //         return;
+        //     }
+        // };
 
-        let graph = match self.graph {
-            Some(graph) => graph,
-            None => {
-                print!("Cannot do this action without creating a graph.\n");
-                return;
-            }
-        };
+        // let mut rng = Rng::new();
+        // let req = SyncRequester::new(graph, &mut rng);
 
-        let mut rng = Rng::new();
-        let req = SyncRequester::new(graph, &mut rng);
+        // let mut syncer = self.syncer.lock().await;
+        // let _ = syncer.sync(Arc::clone(&self.cs), addr, req, Arc::clone(&self.sink), graph).await;
+    }
 
-        let mut syncer = self.syncer.lock().await;
-        let _ = syncer.subscribe(&mut *cs, req, 5, u64::MAX, addr).await;
+    pub async fn subscribe_to(
+        &mut self,
+        _addr: SocketAddr
+    ) -> Result<(), QuicSyncError> {
+        // let graph = match self.graph {
+        //     Some(graph) => graph,
+        //     None => {
+        //         print!("Cannot do this action without creating a graph.\n");
+        //         // TODO: Kidna funny we are returning an OK when this is an error
+        //         return Ok(());
+        //     }
+        // };
+
+        // let mut rng = Rng::new();
+        // let req = SyncRequester::new(graph, &mut rng);
+
+        // let mut syncer = self.syncer.lock().await;
+        // return syncer.subscribe(Arc::clone(&self.cs), req, 5, u64::MAX, addr).await;
+        return Ok(());
     }
 
     pub async fn push_graph(&mut self) {
-        let graph = match self.graph {
-            Some(graph) => graph,
-            None => {
-                print!("Cannot do this action without creating a graph.\n");
-                return;
-            }
-        };
+        // let graph = match self.graph {
+        //     Some(graph) => graph,
+        //     None => {
+        //         print!("Cannot do this action without creating a graph.\n");
+        //         return;
+        //     }
+        // };
 
-        let mut syncer = self.syncer.lock().await;
-        let _ = syncer.send_push(graph);
+        // let mut syncer = self.syncer.lock().await;
+        // let _ = syncer.push(graph);
     }
 
     pub fn set_graph(&mut self, graph: GraphId) {
