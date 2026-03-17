@@ -1,6 +1,7 @@
 use std::{
     sync::Arc,
-    net::SocketAddr
+    net::SocketAddr,
+    collections::BTreeMap
 };
 
 use aranya_libc::Path;
@@ -343,7 +344,8 @@ where
             client: Arc::clone(&cs),
             sink: Arc::clone(&sink),
             connections: Vec::new(),
-            buffers: TraversalBuffers::new()
+            buffers: TraversalBuffers::new(),
+            remote_heads: BTreeMap::new()
         }));
 
         Ok(C2Client {

