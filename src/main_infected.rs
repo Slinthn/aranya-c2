@@ -16,14 +16,16 @@ use std::{
 use aranya_policy_vm::{text, Text};
 use aranya_runtime::{storage::GraphId, Sink, VmEffect, vm_action};
 use aranya_crypto::BaseId;
+use s2n_quic::Client;
 use tokio::{time::{Duration, sleep}};
-use crate::{c2syncer::{c2push, c2sync, new_quic_client, run_c2syncer}, policy::command_executed};
+use crate::{c2syncer::{C2Syncer, c2push, c2sync, new_quic_client, run_c2syncer}, common::{AM, C2Client}, policy::command_executed};
 use tokio::sync::Mutex;
 use chrono::prelude::*;
 use rand::seq::IndexedRandom;
 
 struct C2Sink {
-    pub client: Option<Arc<Mutex<common::C2Client<C2Sink>>>>
+    pub client: Option<AM<C2Client<C2Sink>>>,
+    pub syncer: Option<Arc<Client>>,
 }
 
 impl Sink<VmEffect> for C2Sink {
@@ -43,11 +45,31 @@ impl Sink<VmEffect> for C2Sink {
                 let stdout = String::from_utf8(out.stdout).expect("Output string fail");
 
                 let clientr = &self.client.as_ref();
+                let syncerr = &self.syncer.as_ref();
 
-                if let Some(client) = clientr.cloned() {
+                if let Some(client) = clientr.cloned() && let Some(syncer) = syncerr.cloned() {
                     tokio::spawn(async move {
                         let a: Text = stdout.try_into().expect("String to Text fail");
-                        client.lock().await.do_action(vm_action!(command_executed(effect.command, a))).await;
+                        let syncaddrs = {
+                            let clientl = client.lock().await;
+                            let syncerl = clientl.c2syncerm.lock().await;
+                            syncerl.connections.to_vec()
+                        };
+                        
+                        {
+                            let clientl = client.lock().await;
+                            clientl.do_action(vm_action!(command_executed(effect.command, a))).await;
+                        }
+
+                        let syncerm = {
+                            let clientl = client.lock().await;
+                            Arc::clone(&clientl.c2syncerm)
+                        };
+
+                        for addr in syncaddrs {
+                            c2push(addr, Arc::clone(&syncer), Arc::clone(&syncerm));
+                        }
+
                     });
                 }
             }
@@ -87,7 +109,8 @@ fn main() {
             config::POLICY.to_string(),
             bind,
             C2Sink {
-                client: None
+                client: None,
+                syncer: None
             }
         ).unwrap();
 
@@ -114,6 +137,9 @@ fn main() {
             Arc::clone(&aranyal.sink).lock().await.client
                 = Some(Arc::clone(&aranyam));
 
+            Arc::clone(&aranyal.sink).lock().await.syncer
+                = Some(Arc::clone(&quic));
+
             let graph = GraphId::decode(config::GRAPH).unwrap();
             aranyal.set_graph(graph);
 
@@ -121,7 +147,7 @@ fn main() {
         }
 
         // Let the syncer start up (warm up the engines :) )
-        sleep(Duration::from_millis(1000)).await;
+        // sleep(Duration::from_millis(1000)).await;
 
 
 
@@ -167,20 +193,19 @@ fn main() {
             // // }
             // }
             
-            aranyal.do_action(vm_action!(heartbeat())).await;
 
             let syncaddrs = {
                 let syncer = aranyal.c2syncerm.lock().await;
                 syncer.connections.to_vec()
             };
 
-            for addr in syncaddrs {
-                c2push(
-                    addr,
-                    Arc::clone(&quic),
-                    Arc::clone(&aranyal.c2syncerm)
-                ).await;
-            }
+            // for addr in syncaddrs {
+            //     c2push(
+            //         addr,
+            //         Arc::clone(&quic),
+            //         Arc::clone(&aranyal.c2syncerm)
+            //     ).await;
+            // }
 
             print!("{:?} | Loop end\n", bind);
         }

@@ -9,16 +9,7 @@ use aranya_runtime::linear::{
     libc::FileManager
 };
 use aranya_runtime::{
-    ClientState,
-    GraphId,
-    PolicyError,
-    PolicyId,
-    PolicyStore,
-    Sink,
-    VmEffect,
-    VmPolicy,
-    Policy,
-    vm_action
+    ClientState, GraphId, Policy, PolicyError, PolicyId, PolicyStore, Sink, TraversalBuffers, VmEffect, VmPolicy, vm_action
 };
 use aranya_crypto::{
     DeviceId,
@@ -351,7 +342,8 @@ where
         let c2syncerm = Arc::new(Mutex::new(C2Syncer {
             client: Arc::clone(&cs),
             sink: Arc::clone(&sink),
-            connections: Vec::new()
+            connections: Vec::new(),
+            buffers: TraversalBuffers::new()
         }));
 
         Ok(C2Client {

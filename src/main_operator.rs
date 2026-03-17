@@ -159,7 +159,7 @@ fn main() {
 
     let bind = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 4445);
 
-    let aranya =
+    let mut aranya =
         common::C2Client::init(config::POLICY.to_string(), bind, OperatorSink::new()).unwrap();
 
     let mut syncbind = bind.clone();
@@ -167,11 +167,8 @@ fn main() {
 
     // let aranyam = Arc::new(Mutex::new(aranya));
 
-    rt.block_on(async {
-        let quic = {
-            let cli = new_quic_client(syncbind);
-            Arc::new(cli)
-        };
+    rt.block_on(async move {
+        let quic = Arc::new(new_quic_client(syncbind));
 
         tokio::spawn(
             run_c2syncer(
@@ -189,15 +186,15 @@ fn main() {
         // });
 
         // TODO: End AFC Test
-        let aranyam = Arc::new(Mutex::new(aranya));
+        // let aranyam = Arc::new(Mutex::new(aranya));
 
 
         {
-            let aranyac = Arc::clone(&aranyam);
-            let aranyal = &mut *aranyac.lock().await;
+            // let aranyac = Arc::clone(&aranyam);
+            // let aranyal = &mut *aranyac.lock().await;
 
             // let graph = GraphId::decode(config::GRAPH).unwrap();
-            let graph = match aranyal.create_graph().await {
+            let graph = match aranya.create_graph().await {
                 Ok(v) => v,
                 Err(_) => {
                     print!("Failed to create Aranya graph...");
@@ -208,15 +205,17 @@ fn main() {
             print!("Working on Graph ID `{}`\n", graph);
         }
 
-        let aranyac = Arc::clone(&aranyam);
+        // let aranyac = Arc::clone(&aranyam);
 
         let c2syncerm = {
-            let aranyac = Arc::clone(&aranyam);
-            let aranyal = &mut *aranyac.lock().await;
-            Arc::clone(&aranyal.c2syncerm)
+            // let aranyac = Arc::clone(&aranyam);
+            // let aranyal = &mut *aranyac.lock().await;
+            Arc::clone(&aranya.c2syncerm)
         };
 
-        tokio::spawn(async move {
+        // let quicc = quic.clone();
+
+        tokio::spawn(async {
             loop {
                 let mut s = String::new();
                 std::io::stdin()
@@ -226,16 +225,16 @@ fn main() {
                 if s.starts_with("command ") {
                     let (_, args) = s.split_once(' ').unwrap();
                     print!("{}\n", args);
-                    let aranyal = &mut *aranyac.lock().await;
+                    // let aranyal = &mut *aranyac.lock().await;
 
                     use std::str::FromStr;
                     let text = Text::from_str(args).unwrap();
 
-                    aranyal.do_action(vm_action!(execute_command(text))).await;
+                    aranya.do_action(vm_action!(execute_command(text))).await;
 
                     {
                         let syncaddrs = {
-                            let mut syncerl = aranyal.c2syncerm.lock().await;
+                            let mut syncerl = aranya.c2syncerm.lock().await;
                             syncerl.connections.to_vec()
                         };
                 
@@ -243,7 +242,7 @@ fn main() {
                             c2push(
                                 addr,
                                 Arc::clone(&quic),
-                                Arc::clone(&aranyal.c2syncerm)
+                                Arc::clone(&aranya.c2syncerm)
                             ).await;
                         }
                     }
@@ -262,7 +261,6 @@ fn main() {
                 } else if s.starts_with("qc ") {
                     let (_, args) = s.split_once(' ').unwrap();
 
-
                     if let Ok(amt) = args.trim().parse::<u8>() {
                         for i in 1..amt {
                             let mut syncerl = c2syncerm.lock().await;
@@ -273,8 +271,11 @@ fn main() {
                         }
 
                         {
-                            let aranyac = Arc::clone(&aranyac);
-                            let aranyal = &mut *aranyac.lock().await;
+                            let c2syncerm = {
+                                // let aranyac = Arc::clone(&aranyac);
+                                // let aranyal = &mut *aranyac.lock().await;
+                                Arc::clone(&aranya.c2syncerm)
+                            };
 
                             let syncaddrs = {
                                 let mut syncerl = c2syncerm.lock().await;
@@ -285,7 +286,7 @@ fn main() {
                                 c2push(
                                     addr,
                                     Arc::clone(&quic),
-                                    Arc::clone(&aranyal.c2syncerm)
+                                    Arc::clone(&c2syncerm)
                                 ).await;
                             }
                         }
@@ -297,34 +298,83 @@ fn main() {
         loop {
             sleep(Duration::from_millis(1000)).await;
 
-            let aranyac = Arc::clone(&aranyam);
-            let aranyal = &mut *aranyac.lock().await;
+            {
+                // let aranyac = Arc::clone(&aranyam);
+                // let aranyal = &mut *aranyac.lock().await;
 
-            aranyal
-                .do_ephemeral_action(vm_action!(query_devices()))
-                .await;
+                aranya
+                    .do_ephemeral_action(vm_action!(query_devices()))
+                    .await;
 
-            console_clear();
-            print_header(aranyal);
-            print_nodes(aranyal).await;
+                // console_clear();
+                // print_header(aranya);
+                // print_nodes(aranya).await;
 
-            // c2sync(
-            //     SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 3)), 4445),
-            //     &quic,
-            //     Arc::clone(&aranyal.c2syncerm)
-            // ).await;
+                // c2sync(
+                //     SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 3)), 4445),
+                //     &quic,
+                //     Arc::clone(&aranyal.c2syncerm)
+                // ).await;
 
-            let syncaddrs = {
-                let syncer = aranyal.c2syncerm.lock().await;
-                syncer.connections.to_vec()
-            };
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+                aranya.do_action(vm_action!(heartbeat())).await;
+            }
+
+            // let (c2syncerm, syncaddrs) = {
+            //     // let aranyac = Arc::clone(&aranyam);
+            //     // let aranyal = &mut *aranyac.lock().await;
+            //     let syncaddrs = {
+            //         let syncer = aranya.c2syncerm.lock().await;
+            //         syncer.connections.to_vec()
+            //     };
+                
+            //     (Arc::clone(&aranya.c2syncerm), syncaddrs)
+            // };
 
             // for addr in syncaddrs {
+            //     println!("Pushing");
             //     c2push(
             //         addr,
-            //         Arc::clone(&quic),
-            //         Arc::clone(&aranyal.c2syncerm)
+            //         Arc::clone(&quicc),
+            //         Arc::clone(&c2syncerm)
             //     ).await;
+            //     println!("Done");
             // }
         }
     });

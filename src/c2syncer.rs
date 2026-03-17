@@ -18,6 +18,7 @@ pub struct C2Syncer<S: Sink<VmEffect>> {
     pub client: AM<C2ClientState>,
     pub sink: AM<S>,
     pub connections: std::vec::Vec<SocketAddr>,
+    pub buffers: TraversalBuffers
 }
 
 async fn handle_request<S: Sink<VmEffect>>(
@@ -56,11 +57,14 @@ async fn handle_request<S: Sink<VmEffect>>(
                 }
             }
 
+            // println!("{:?}", req);
+
             let (sync_type, remaining) = match postcard::take_from_bytes::<SyncType>(remaining) {
                 Ok((sync_type, remaining)) => (sync_type, remaining),
                 Err(e) => {
                     println!("Error parsing sync data");
                     println!("{}", e);
+                    println!("{:?}", remaining);
                     return;
                 }
             };
@@ -71,31 +75,35 @@ async fn handle_request<S: Sink<VmEffect>>(
                 let mut responder = SyncResponder::new();
                 responder.receive(request);
 
-                {
+                let syncaddrs = {
                     let syncer = syncerm.lock().await;
+                    syncer.connections.to_vec()
+                };
+
+                {
+                    let mut syncer = &mut *syncerm.lock().await;
                     let mut clientc = syncer.client.lock().await;
+                    let tbuffers = &mut syncer.buffers;
     
                     let mut cache = PeerCache::new();
-                    let mut tbuffers = TraversalBuffers::new();
 
-                    responder.poll(&mut buffer, clientc.provider(), &mut cache, &mut tbuffers);
+                    responder.poll(&mut buffer, clientc.provider(), &mut cache, tbuffers);
                 }
 
-                s.send(buffer.into()).await;
+                s.send_vectored(&mut [Bytes::from(postcard::to_allocvec(&syncaddrs).unwrap()), buffer.into()]).await;
             } else if let SyncType::Push { message, graph_id } = sync_type {
                 let mut cache = PeerCache::new();
-                let mut tbuffers = TraversalBuffers::new();
 
                 let mut requester = SyncRequester::new_session_id(graph_id, message.session_id());
-                if let Ok(Some(cmds)) = requester.get_sync_commands(message, remaining) {
+                if let Ok(Some(cmds)) = requester.get_sync_commands(message, remaining) && cmds.len() > 0 {
                     let count = {
-                        let syncer = syncerm.lock().await;
+                        let mut syncer = &mut *syncerm.lock().await;
                         let mut clientc = syncer.client.lock().await;
                         let mut sinkc = syncer.sink.lock().await;
+                        let mut tbuffers = &mut syncer.buffers;
 
                         let mut tx = clientc.transaction(graph_id);
                         let count = clientc.add_commands(&mut tx, &mut *sinkc, &cmds, &mut tbuffers.primary);
-                    
                         clientc.commit(tx, &mut *sinkc, &mut tbuffers.primary);
                         clientc.update_heads(
                             graph_id,
@@ -106,23 +114,25 @@ async fn handle_request<S: Sink<VmEffect>>(
 
                         count
                     };
+
+                    println!("HELLOOOOOOOOOOOO {:?}", count);
                     
                     // Sync with everyone else with regard to
-                    //   this new command
+                    //   this/these new command(s)
                     if let Ok(cu) = count && cu > 0 {
                         let syncaddrs = {
                             let syncer = syncerm.lock().await;
                             syncer.connections.to_vec()
                         };
 
-                        for mut syncaddr in syncaddrs {
-                            syncaddr.set_port(config::PORT);
-                            c2push(
-                                syncaddr,
-                                Arc::clone(&client),
-                                Arc::clone(&syncerm)
-                            ).await;
-                        }
+                        // for mut syncaddr in syncaddrs {
+                        //     syncaddr.set_port(config::PORT);
+                        //     c2push(
+                        //         syncaddr,
+                        //         Arc::clone(&client),
+                        //         Arc::clone(&syncerm)
+                        //     ).await;
+                        // }
                     }
                 }
             }
@@ -164,16 +174,16 @@ pub async fn c2sync<S: Sink<VmEffect>>(
             let mut requester = SyncRequester::new(graph, Rng);
             
             let mut buffer = vec![0u8; MAX_SYNC_MESSAGE_SIZE];
-            let mut tbuffers = TraversalBuffers::new();
             
             let syncaddrs = {
                 let syncerl = syncerm.lock().await;
                 syncerl.connections.to_vec()
             };
 
-            {
-                let syncer = syncerm.lock().await;
+            let (len, _) = {
+                let mut syncer = &mut *syncerm.lock().await;
                 let mut clientc = syncer.client.lock().await;    
+                let mut tbuffers = &mut syncer.buffers;
 
                 let mut cache = PeerCache::new();
 
@@ -182,8 +192,11 @@ pub async fn c2sync<S: Sink<VmEffect>>(
                     clientc.provider(),
                     &mut cache,
                     &mut tbuffers.primary,
-                );
-            }
+                ).unwrap()
+            };
+
+            buffer.truncate(len);
+            buffer.shrink_to_fit();
 
             s.send_vectored(&mut [Bytes::from(postcard::to_allocvec(&syncaddrs).unwrap()), buffer.into()]).await;
 
@@ -194,10 +207,11 @@ pub async fn c2sync<S: Sink<VmEffect>>(
             }
 
             {
-                let syncer = syncerm.lock().await;
+                let syncer = &mut *syncerm.lock().await;
                 let mut clientc = syncer.client.lock().await;
                 let mut sinkc = syncer.sink.lock().await;
                 let mut cache = PeerCache::new();
+                let mut tbuffers = &mut syncer.buffers;
 
                 if let Ok(Some(cmds)) = requester.receive(&recv) {
                     let mut tx = clientc.transaction(graph);
@@ -249,7 +263,6 @@ pub async fn c2push<S: Sink<VmEffect>>(
             });
 
             let mut buffer = vec![0u8; MAX_SYNC_MESSAGE_SIZE];
-            let mut tbuffers = TraversalBuffers::new();
             
             let syncaddrs = {
                 let syncerl = syncerm.lock().await;
@@ -257,19 +270,23 @@ pub async fn c2push<S: Sink<VmEffect>>(
             };
 
             {
-                let syncer = syncerm.lock().await;
-                let mut clientc = syncer.client.lock().await;    
+                let syncer = &mut *syncerm.lock().await;
+                let mut clientc = syncer.client.lock().await;
+                let tbuffers = &mut syncer.buffers;
 
                 let mut cache = PeerCache::new();
 
-                responder.push(
+                match responder.push(
                     &mut buffer,
                     clientc.provider(),
-                    &mut tbuffers
-                );
+                    tbuffers
+                ) {
+                    Ok(_) => {
+                        println!("{:?}", s.send_vectored(&mut [Bytes::from(postcard::to_allocvec(&syncaddrs).unwrap()), buffer.into()]).await);
+                    },
+                    Err(_) => {}
+                }
             }
-
-            println!("{:?}", s.send_vectored(&mut [Bytes::from(postcard::to_allocvec(&syncaddrs).unwrap()), buffer.into()]).await);
         }
     }
 }
