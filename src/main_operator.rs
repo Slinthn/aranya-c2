@@ -15,7 +15,7 @@ use chrono::DateTime;
 use tokio::sync::Mutex;
 use tokio::time::{Duration, sleep};
 
-use crate::c2syncer::{c2sync, new_quic_client};
+use crate::c2syncer::{c2push, c2sync, new_quic_client, run_c2syncer};
 
 struct DeviceStatus {
     device_id: DeviceId,
@@ -159,19 +159,38 @@ fn main() {
 
     let bind = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 4445);
 
+    let aranya =
+        common::C2Client::init(config::POLICY.to_string(), bind, OperatorSink::new()).unwrap();
+
+    let mut syncbind = bind.clone();
+    syncbind.set_port(4446);
+
+    // let aranyam = Arc::new(Mutex::new(aranya));
+
     rt.block_on(async {
+        let quic = {
+            let cli = new_quic_client(syncbind);
+            Arc::new(cli)
+        };
+
+        tokio::spawn(
+            run_c2syncer(
+                Arc::clone(&aranya.c2syncerm),
+                Arc::clone(&quic),
+                bind
+            )
+        );
+
+
         // TODO: AFC Test
 
-        tokio::spawn(async {
-            afc_listener().await;
-        });
+        // tokio::spawn(async {
+        //     afc_listener().await;
+        // });
 
         // TODO: End AFC Test
-
-        let aranya =
-            common::C2Client::init(config::POLICY.to_string(), bind, OperatorSink::new()).unwrap();
-
         let aranyam = Arc::new(Mutex::new(aranya));
+
 
         {
             let aranyac = Arc::clone(&aranyam);
@@ -191,6 +210,12 @@ fn main() {
 
         let aranyac = Arc::clone(&aranyam);
 
+        let c2syncerm = {
+            let aranyac = Arc::clone(&aranyam);
+            let aranyal = &mut *aranyac.lock().await;
+            Arc::clone(&aranyal.c2syncerm)
+        };
+
         tokio::spawn(async move {
             loop {
                 let mut s = String::new();
@@ -207,16 +232,70 @@ fn main() {
                     let text = Text::from_str(args).unwrap();
 
                     aranyal.do_action(vm_action!(execute_command(text))).await;
+
+                    {
+                        let syncaddrs = {
+                            let mut syncerl = aranyal.c2syncerm.lock().await;
+                            syncerl.connections.to_vec()
+                        };
+                
+                        for addr in syncaddrs {
+                            c2push(
+                                addr,
+                                Arc::clone(&quic),
+                                Arc::clone(&aranyal.c2syncerm)
+                            ).await;
+                        }
+                    }
+
+                } else if s.starts_with("connect ") {
+                    let (_, args) = s.split_once(' ').unwrap();
+                    
+                    if let Ok(addr) = args.trim().parse::<SocketAddr>() {
+                        let mut syncerl = c2syncerm.lock().await;
+                        if !syncerl.connections.contains(&addr) {
+                            syncerl.connections.push(addr);
+                        }
+                    } else {
+                        println!("Invalid address!");
+                    }
+                } else if s.starts_with("qc ") {
+                    let (_, args) = s.split_once(' ').unwrap();
+
+
+                    if let Ok(amt) = args.trim().parse::<u8>() {
+                        for i in 1..amt {
+                            let mut syncerl = c2syncerm.lock().await;
+                            let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, i)), 4445);
+                            if !syncerl.connections.contains(&addr) {
+                                syncerl.connections.push(addr);
+                            }
+                        }
+
+                        {
+                            let aranyac = Arc::clone(&aranyac);
+                            let aranyal = &mut *aranyac.lock().await;
+
+                            let syncaddrs = {
+                                let mut syncerl = c2syncerm.lock().await;
+                                syncerl.connections.to_vec()
+                            };
+                    
+                            for addr in syncaddrs {
+                                c2push(
+                                    addr,
+                                    Arc::clone(&quic),
+                                    Arc::clone(&aranyal.c2syncerm)
+                                ).await;
+                            }
+                        }
+                    }
                 }
             }
         });
 
-        let mut syncbind = bind.clone();
-        syncbind.set_port(4446);
-        let quic = new_quic_client(syncbind);
-
         loop {
-            sleep(Duration::from_millis(100)).await;
+            sleep(Duration::from_millis(1000)).await;
 
             let aranyac = Arc::clone(&aranyam);
             let aranyal = &mut *aranyac.lock().await;
@@ -229,11 +308,24 @@ fn main() {
             print_header(aranyal);
             print_nodes(aranyal).await;
 
-            c2sync(
-                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 3)), 4445),
-                &quic,
-                Arc::clone(&aranyal.c2syncerm)
-            ).await;
+            // c2sync(
+            //     SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, 3)), 4445),
+            //     &quic,
+            //     Arc::clone(&aranyal.c2syncerm)
+            // ).await;
+
+            let syncaddrs = {
+                let syncer = aranyal.c2syncerm.lock().await;
+                syncer.connections.to_vec()
+            };
+
+            // for addr in syncaddrs {
+            //     c2push(
+            //         addr,
+            //         Arc::clone(&quic),
+            //         Arc::clone(&aranyal.c2syncerm)
+            //     ).await;
+            // }
         }
     });
 }

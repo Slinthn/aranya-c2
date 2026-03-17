@@ -17,9 +17,10 @@ use aranya_policy_vm::{text, Text};
 use aranya_runtime::{storage::GraphId, Sink, VmEffect, vm_action};
 use aranya_crypto::BaseId;
 use tokio::{time::{Duration, sleep}};
-use crate::{c2syncer::{c2sync, new_quic_client}, policy::command_executed};
+use crate::{c2syncer::{c2push, c2sync, new_quic_client, run_c2syncer}, policy::command_executed};
 use tokio::sync::Mutex;
 use chrono::prelude::*;
+use rand::seq::IndexedRandom;
 
 struct C2Sink {
     pub client: Option<Arc<Mutex<common::C2Client<C2Sink>>>>
@@ -90,6 +91,18 @@ fn main() {
             }
         ).unwrap();
 
+        let mut syncbind = bind.clone();
+        syncbind.set_port(4446);
+        let quic = Arc::new(new_quic_client(syncbind));
+
+        tokio::spawn(
+            run_c2syncer(
+                Arc::clone(&aranya.c2syncerm),
+                Arc::clone(&quic),
+                bind
+            )
+        );
+
         // Aranya Mutex I guess, maybe should be called Aranya Arc
         let aranyam = Arc::new(Mutex::new(aranya));
         
@@ -110,18 +123,16 @@ fn main() {
         // Let the syncer start up (warm up the engines :) )
         sleep(Duration::from_millis(1000)).await;
 
-        let mut syncbind = bind.clone();
-        syncbind.set_port(4446);
-        let quic = new_quic_client(syncbind);
+
 
         // TODO: Temp default sync ip for operator
-        {
-            let aranyac = Arc::clone(&aranyam);
-            let aranyal = &mut *aranyac.lock().await;
-            let mut syncerl = aranyal.c2syncerm.lock().await;
+        // {
+        //     let aranyac = Arc::clone(&aranyam);
+        //     let aranyal = &mut *aranyac.lock().await;
+        //     let mut syncerl = aranyal.c2syncerm.lock().await;
 
-            syncerl.connections.push(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 4445));
-        }
+        //     syncerl.connections.push(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 4445));
+        // }
 
         // Syncing logic loop
         loop {
@@ -140,20 +151,38 @@ fn main() {
 
             println!("{:?}", syncaddrs);
 
-            for mut syncaddr in syncaddrs {
-                syncaddr.set_port(config::PORT);
-                c2sync(
-                    syncaddr,
-                    &quic,
+            // let mut max = 5;
+            
+            // for chosen in syncaddrs {
+                // // for i in 1..20 {
+                    //     // if let Some(mut chosen) = syncaddrs.choose(&mut rand::rng()) {
+            //         let mut syncaddr = chosen;
+            //         syncaddr.set_port(config::PORT);
+            //         c2push(
+                //             syncaddr,
+            //             &quic,
+            //             Arc::clone(&aranyal.c2syncerm)
+            //         ).await;
+            //     // }
+            // // }
+            // }
+            
+            aranyal.do_action(vm_action!(heartbeat())).await;
+
+            let syncaddrs = {
+                let syncer = aranyal.c2syncerm.lock().await;
+                syncer.connections.to_vec()
+            };
+
+            for addr in syncaddrs {
+                c2push(
+                    addr,
+                    Arc::clone(&quic),
                     Arc::clone(&aranyal.c2syncerm)
                 ).await;
             }
 
-            aranyal.do_action(vm_action!(heartbeat())).await;
-
             print!("{:?} | Loop end\n", bind);
         }
     });
-
-    print!("Should not reach\n");
 }

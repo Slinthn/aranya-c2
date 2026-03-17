@@ -45,7 +45,7 @@ use tokio::{sync::{Mutex, mpsc}};
 use chrono::Utc;
 
 use crate::config::{self, C2ClientState, C2StorageProvider};
-use crate::c2syncer::{run_c2syncer, C2Syncer, c2sync};
+use crate::c2syncer::{C2Syncer, c2sync, new_quic_client, run_c2syncer};
 
 pub type C2VMPolicy = VmPolicy<DefaultEngine<Rng>>; 
 
@@ -138,7 +138,7 @@ pub struct C2Client<T: Sink<VmEffect>> {
     pub c2syncerm: AM<C2Syncer<T>>,
     pub cs: AM<C2ClientState>,
     pub sink: AM<T>,
-    pub syncer: AM<Syncer<C2PolicyStore, C2StorageProvider, T>>,
+    // pub syncer: AM<Syncer<C2PolicyStore, C2StorageProvider, T>>,
     pub graph: Option<GraphId>
 }
 
@@ -333,17 +333,17 @@ where
         // Create server for incoming sync requests
 
 
-        let (tx, _rx) = mpsc::unbounded_channel();
-        let syncer = Arc::new(
-            Mutex::new(
-                Syncer::new(&*config::CERTIFICATE,
-                    Arc::clone(&cs),
-                    Arc::clone(&sink),
-                    tx,
-                    bind_addr
-                ).unwrap()
-            )
-        );
+        // let (tx, _rx) = mpsc::unbounded_channel();
+        // let syncer = Arc::new(
+        //     Mutex::new(
+        //         Syncer::new(&*config::CERTIFICATE,
+        //             Arc::clone(&cs),
+        //             Arc::clone(&sink),
+        //             tx,
+        //             bind_addr
+        //         ).unwrap()
+        //     )
+        // );
 
         // Start the Aranya syncer server
         // tokio::spawn(run_syncer(Arc::clone(&syncer), server, rx));
@@ -354,13 +354,11 @@ where
             connections: Vec::new()
         }));
 
-        tokio::spawn(run_c2syncer(Arc::clone(&c2syncerm), bind_addr));
-
         Ok(C2Client {
             c2syncerm,
             cs,
             sink,
-            syncer,
+            // syncer,
             graph: None
         })
     }
