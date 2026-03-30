@@ -1,9 +1,10 @@
-mod c2syncer;
 mod common;
 mod config;
+mod policy;
+mod c2syncer;
 
 use std::{
-    io::{Read, Write},
+    io::{Write},
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
 };
@@ -12,10 +13,9 @@ use aranya_crypto::{CmdId, DeviceId};
 use aranya_policy_text::Text;
 use aranya_runtime::{Sink, VmEffect, vm_action};
 use chrono::DateTime;
-use tokio::sync::Mutex;
 use tokio::time::{Duration, sleep};
 
-use crate::{c2syncer::{c2push, c2sync, new_quic_client, run_c2syncer}, common::C2Client};
+use crate::{c2syncer::{c2push, c2sync, new_quic_client, run_c2syncer}, common::{C2Client, random_sync}};
 
 struct DeviceStatus {
     device_id: DeviceId,
@@ -126,24 +126,24 @@ async fn print_nodes(aranya: &C2Client<OperatorSink>) {
     }
 }
 
-async fn afc_listener() {
-    let listener = std::net::TcpListener::bind("127.0.0.1:4446").unwrap();
+// async fn afc_listener() {
+//     let listener = std::net::TcpListener::bind("127.0.0.1:4446").unwrap();
 
-    for stream in listener.incoming() {
-        let mut buffer = [0; 1024];
+//     for stream in listener.incoming() {
+//         let mut buffer = [0; 1024];
 
-        match stream.unwrap().read(&mut buffer) {
-            Ok(n) => {
-                println!("Data: {:?}", &buffer[..n]);
-            }
-            Err(_) => {}
-        }
+//         match stream.unwrap().read(&mut buffer) {
+//             Ok(n) => {
+//                 println!("Data: {:?}", &buffer[..n]);
+//             }
+//             Err(_) => {}
+//         }
 
-        // if let Ok(Some(req)) = stream.unwrap().receive().await {
-        // println!("{:?}", req);
-        // }
-    }
-}
+//         // if let Ok(Some(req)) = stream.unwrap().receive().await {
+//         // println!("{:?}", req);
+//         // }
+//     }
+// }
 
 fn main() {
     // Enable logging to terminal
@@ -157,7 +157,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let bind = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 4445);
+    let bind = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 3)), 4445);
 
     let mut aranya = C2Client::init(
         config::POLICY.to_string(),
@@ -187,6 +187,11 @@ fn main() {
                 return;
             }
         };
+
+        // TODO: Insane testing environemnt skills
+        let mut file = std::fs::File::create("src/graph.txt").unwrap();
+        file.write_all(graph.as_array());
+        // TODO: End skills
 
         print!("Working on Graph ID `{}`\n", graph);
 
@@ -220,7 +225,7 @@ fn main() {
 
                     {
                         let syncaddrs = {
-                            let mut syncerl = aranya.c2syncerm.lock().await;
+                            let syncerl = aranya.c2syncerm.lock().await;
                             syncerl.connections.to_vec()
                         };
                 
@@ -228,7 +233,8 @@ fn main() {
                             c2push(
                                 addr,
                                 Arc::clone(&quic),
-                                Arc::clone(&aranya.c2syncerm)
+                                Arc::clone(&aranya.c2syncerm),
+                                graph
                             ).await;
 
                             // Need to sleep otherwise connection will
@@ -263,36 +269,35 @@ fn main() {
                             }
                         }
 
-                        let syncaddrs = {
-                            let mut syncerl = aranya.c2syncerm.lock().await;
-                            syncerl.connections.to_vec()
-                        };
+                        // let syncaddrs = {
+                        //     let mut syncerl = aranya.c2syncerm.lock().await;
+                        //     syncerl.connections.to_vec()
+                        // };
 
-                        let syncaddrs = {
-                            let mut syncerl = aranya.c2syncerm.lock().await;
-                            syncerl.connections.to_vec()
-                        };
-                
-                        for addr in syncaddrs {
-                            println!("Loop");
-                            c2push(
-                                addr,
-                                Arc::clone(&quic),
-                                Arc::clone(&aranya.c2syncerm)
-                            ).await;
+                        // for addr in syncaddrs {
+                        //     sleep(Duration::from_millis(100)).await;
+                        //     c2push(
+                        //         addr,
+                        //         Arc::clone(&quic),
+                        //         Arc::clone(&aranya.c2syncerm),
+                        //         graph
+                        //     ).await;
 
-                            // Need to sleep otherwise connection will
-                            //   not be made for some reason
-                            sleep(Duration::from_millis(10)).await;
-                        }
+                        //     // Need to sleep otherwise connection will
+                        //     //   not be made for some reason
+                        //     sleep(Duration::from_millis(100)).await;
+                        // }
 
+                        
                         // TODO: This is such a big hack. Without manually dropping
                         //   this var, it will stay locked forever. I have no fkin
                         //   idea why... (Whole program will hang for like eternity)
-                        let mut syncerl = aranya.c2syncerm.lock().await;
-                        drop(syncerl);
+                        // sleep(Duration::from_millis(100)).await;
+                        // let mut syncerl = aranya.c2syncerm.lock().await;
+                        // drop(syncerl);
                         
-                        println!("DOne this shit!!");
+                        // println!("DOne this shit!!");
+                        // continue;
                     }
                 }
             }
@@ -311,25 +316,29 @@ fn main() {
             console_clear();
             print_header(&aranya);
             print_nodes(&aranya).await;
-            aranya.do_action(vm_action!(heartbeat())).await;
+            // aranya.do_action(vm_action!(heartbeat(aranya.keys.clone()))).await;
 
-            let (c2syncerm, syncaddrs) = {
-                let syncaddrs = {
-                    let syncer = aranya.c2syncerm.lock().await;
-                    syncer.connections.to_vec()
-                };
-                
-                (Arc::clone(&aranya.c2syncerm), syncaddrs)
+            let syncaddrs = {
+                let mut syncer = aranya.c2syncerm.lock().await;
+                random_sync(&mut syncer, Some(bind))
             };
-
+                
             for addr in syncaddrs {
-                println!("Pushing");
                 c2push(
                     addr,
                     Arc::clone(&quic),
-                    Arc::clone(&c2syncerm)
+                    Arc::clone(&aranya.c2syncerm),
+                    graph
                 ).await;
-                println!("Done");
+
+                c2sync(
+                    addr,
+                    Arc::clone(&quic),
+                    Arc::clone(&aranya.c2syncerm),
+                    graph
+                ).await;
+
+                sleep(Duration::from_millis(10)).await;
             }
         }
     });

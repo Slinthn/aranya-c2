@@ -18,7 +18,7 @@ use aranya_runtime::{storage::GraphId, Sink, VmEffect, vm_action};
 use aranya_crypto::BaseId;
 use s2n_quic::Client;
 use tokio::{time::{Duration, sleep}};
-use crate::{c2syncer::{C2Syncer, c2push, c2sync, new_quic_client, run_c2syncer}, common::{AM, C2Client}, policy::command_executed};
+use crate::{c2syncer::{C2Syncer, c2push, c2sync, new_quic_client, run_c2syncer}, common::{AM, C2Client, random_sync}};
 use tokio::sync::Mutex;
 use chrono::prelude::*;
 use rand::seq::IndexedRandom;
@@ -55,21 +55,21 @@ impl Sink<VmEffect> for C2Sink {
                             syncerl.connections.to_vec()
                         };
                         
-                        {
-                            client.do_action(vm_action!(command_executed(effect.command, a))).await;
-                        }
+                        // client.do_action(vm_action!(command_executed(effect.command, a))).await;
 
                         let syncerm = {
                             Arc::clone(&client.c2syncerm)
                         };
 
-                        for addr in syncaddrs {
-                            c2push(addr, Arc::clone(&syncer), Arc::clone(&syncerm)).await;
+                        // for addr in syncaddrs {
 
-                            // Need to sleep otherwise connection will
-                            //   not be made for some reason
-                            sleep(Duration::from_millis(10)).await;
-                        }
+                        //     // TODO: Unsafe unwrap
+                        //     c2push(addr, Arc::clone(&syncer), Arc::clone(&syncerm), client.graph.unwrap()).await;
+
+                        //     // Need to sleep otherwise connection will
+                        //     //   not be made for some reason
+                        //     sleep(Duration::from_millis(10)).await;
+                        // }
                     });
                 }
             }
@@ -114,7 +114,7 @@ fn main() {
             }
         ).unwrap();
 
-        let graph = GraphId::decode(config::GRAPH).unwrap();
+        let graph = GraphId::from_bytes(config::GRAPH_BIN.try_into().unwrap());
         aranya.set_graph(graph);
         print!("Working on Graph ID `{}`\n", graph);
 
@@ -139,21 +139,22 @@ fn main() {
             sink.syncer = Some(Arc::clone(&quic));
         }
 
+        let mut sent_heartbeat = false;
 
         // Syncing logic loop
         loop {
             // print!("{:?} | Loop start\n", bind);
             // Stall for a random amount of time
-            sleep(Duration::from_millis(rand::random_range(1000..2000))).await;
+            sleep(Duration::from_millis(rand::random_range(2000..10000))).await;
 
             // Sync up with some nodes
 
             let syncaddrs = {
-                let syncerl = aranya.c2syncerm.lock().await;
-                syncerl.connections.to_vec()
+                let mut syncer = aranya.c2syncerm.lock().await;
+                random_sync(&mut syncer, Some(bind))
             };
 
-            println!("{bind} {:?}", syncaddrs);
+            // println!("{bind} {:?}", syncaddrs);
 
             // let mut max = 5;
             
@@ -170,25 +171,54 @@ fn main() {
             //     // }
             // // }
             // }
-            
-            aranya.do_action(vm_action!(heartbeat())).await;
 
-            let syncaddrs = {
-                let syncer = aranya.c2syncerm.lock().await;
-                syncer.connections.to_vec()
-            };
+            // if !sent_heartbeat {
+                for addr in &syncaddrs {
+                    c2sync(
+                        *addr,
+                        Arc::clone(&quic),
+                        Arc::clone(&aranya.c2syncerm),
+                        graph
+                    ).await;
 
-            for addr in syncaddrs {
-                c2push(
-                    addr,
-                    Arc::clone(&quic),
-                    Arc::clone(&aranya.c2syncerm)
-                ).await;
+                    c2push(
+                        *addr,
+                        Arc::clone(&quic),
+                        Arc::clone(&aranya.c2syncerm),
+                        graph
+                    ).await;
 
-                // Need to sleep otherwise connection will
-                //   not be made for some reason
-                sleep(Duration::from_millis(10)).await;
-            }
+                    // Need to sleep otherwise connection will
+                    //   not be made for some reason
+                    sleep(Duration::from_millis(10)).await;
+                }
+            // }
+
+            // sent_heartbeat = true;
+            // if !sent_heartbeat && aranya.do_action(vm_action!(heartbeat(aranya.keys.clone()))).await {
+            //     sent_heartbeat = true;
+            //     println!("Lol i sent my heartbeat!!!");
+
+            //     for addr in &syncaddrs {
+            //         c2push(
+            //             *addr,
+            //             Arc::clone(&quic),
+            //             Arc::clone(&aranya.c2syncerm),
+            //             graph
+            //         ).await;
+
+            //         c2sync(
+            //             *addr,
+            //             Arc::clone(&quic),
+            //             Arc::clone(&aranya.c2syncerm),
+            //             graph
+            //         ).await;
+
+            //         // Need to sleep otherwise connection will
+            //         //   not be made for some reason
+            //         sleep(Duration::from_millis(200)).await;
+            //     }
+            // }
 
             // print!("{:?} | Loop end\n", bind);
         }
