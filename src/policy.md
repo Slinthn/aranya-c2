@@ -152,6 +152,16 @@ command CommandExecution {
     }
 
     policy {
+        // Check if owner (if keys are stored in fact)
+        // TODO: This is probably a goofy way to do it tbh
+        let ident = check_unwrap query DeviceIdentPk[
+            device_id: envelope::author_id(envelope)
+        ]
+        
+        let device_id = idam::derive_device_id(ident.key)
+
+        check exists DeviceSignPk[device_id: device_id]
+
         finish {
             emit Command { cmdline: this.cmdline }
         }

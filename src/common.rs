@@ -1,27 +1,26 @@
 use std::{
-    sync::Arc,
-    net::SocketAddr,
-    collections::BTreeMap
+    str::FromStr,
+    path::Path,
+    fs
 };
 
-use aranya_crypto::dangerous::spideroak_crypto;
+use aranya_crypto::dangerous::spideroak_crypto::aead::Aead;
+use aranya_crypto::dangerous::spideroak_crypto::import::Import;
+use aranya_crypto::dangerous::spideroak_crypto::keys::SecretKey;
 use aranya_crypto::default::DefaultCipherSuite;
-use aranya_crypto::keystore::fs_keystore;
+use aranya_crypto::keystore::fs_keystore::Store;
 use aranya_crypto::keystore::memstore::MemStore;
-use aranya_libc::Path;
 use aranya_runtime::linear::{
     libc::FileManager
 };
 use aranya_runtime::{
-    ClientState, GraphId, Policy, PolicyError, PolicyId, PolicyStore, Sink, TraversalBuffers, VmEffect, VmPolicy, vm_action
+    GraphId, PolicyError, PolicyId, PolicyStore, Sink, VmEffect, VmPolicy, vm_action
 };
 use aranya_crypto::{
-    DeviceId,
     Rng,
-    default::DefaultEngine,
-    id::IdExt
+    default::DefaultEngine
 };
-use aranya_crypto::{CmdId, Csprng, EncryptionKey, EncryptionPublicKey, Engine, IdentityKey, IdentityVerifyingKey, KeyStoreExt, SigningKey, VerifyingKey};
+use aranya_crypto::{CipherSuite, CmdId, Csprng, DeviceId, EncryptionKey, EncryptionPublicKey, Engine, Identified, IdentityKey, IdentityVerifyingKey, KeyStoreExt, SigningKey, VerifyingKey};
 use aranya_policy_compiler::Compiler;
 use aranya_policy_lang::lang::parse_policy_document;
 use aranya_policy_vm::{
@@ -31,13 +30,11 @@ use aranya_policy_vm::{
     MachineError,
     ffi::ffi
 };
-use rand::RngExt;
-use rand::seq::{IndexedRandom, SliceRandom};
-use tokio::{sync::{Mutex}};
+use serde::{Deserialize, Serialize};
 use chrono::Utc;
 
 use crate::config::{C2ClientState, C2StorageProvider};
-use crate::c2syncer::{C2Syncer};
+use crate::policy::PublicKeyBundle;
 
 pub type C2VMPolicy = VmPolicy<DefaultEngine<Rng>>; 
 
@@ -99,89 +96,89 @@ impl C2Ffi {
     }
 }
 
-pub(crate) struct TestSink {
-    cmds: Vec<Box<[u8]>>
+// pub(crate) struct TestSink {
+//     cmds: Vec<Box<[u8]>>
+// }
+
+// impl TestSink {
+//     fn new() -> Self {
+//         Self {
+//             cmds: Vec::new()
+//         }
+//     }
+// }
+
+// impl Sink<&[u8]> for TestSink {
+//     fn begin(&mut self) {}
+    
+//     fn consume(&mut self, effect: &[u8]) {
+//         self.cmds.push(effect.into());
+//     }
+
+//     fn rollback(&mut self) {}
+    
+//     fn commit(&mut self) {}
+// }
+
+// TODO: rm comment - Aead key, lol i had to fight rust to figure out this type wtf, before i was
+//   using AeadKey<UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>>
+pub type AeadKey = <<DefaultCipherSuite as CipherSuite>::Aead as Aead>::Key;
+
+pub struct C2Client<'a> {
+    pub engine: DefaultEngine<Rng, DefaultCipherSuite>,
+    // TODO: Bro what should this type actually be ? wtf...
+    // pub key: AeadKey,
+    pub config_dir: &'a Path
 }
 
-impl TestSink {
-    fn new() -> Self {
-        Self {
-            cmds: Vec::new()
+pub struct PrivateKeyBundle {
+    pub ident_key: IdentityKey<DefaultCipherSuite>,
+    pub sign_key: SigningKey<DefaultCipherSuite>,
+    pub enc_key: EncryptionKey<DefaultCipherSuite>
+}
+
+// TODO: I really need to stop calling these things C2ThisThatTheOther
+#[derive(Serialize, Deserialize)]
+pub struct C2Config {
+    #[serde(default)]
+    ident_id: String,
+    #[serde(default)]
+    sign_id: String,
+    #[serde(default)]
+    enc_id: String,
+    #[serde(default)]
+    graph_id: String
+}
+
+
+impl<'a> C2Client<'a> {
+    pub fn new(config_dir: &'a Path) -> Self {
+        let confpath = config_dir.join(Path::new("key.bin"));
+        // TODO: copied in new_engine
+        let engine = match fs::read(&confpath) {
+            Ok(data) => {
+                let key = Import::import(data.as_slice()).expect("Could not retrieve key");
+                DefaultEngine::new(&key, Rng)
+            },
+            Err(_) => {
+                let (engine, key): (DefaultEngine, AeadKey) =
+                    DefaultEngine::from_entropy(Rng);
+
+                let _ = fs::write(
+                    config_dir.join(Path::new("key.bin")),
+                    key.try_export_secret()
+                        .expect("Could not export secret")
+                        .into_bytes()
+                );
+
+                engine
+            }
+        };
+
+        C2Client {
+            engine,
+            config_dir
         }
-    }
-}
-
-impl Sink<&[u8]> for TestSink {
-    fn begin(&mut self) {}
-    
-    fn consume(&mut self, effect: &[u8]) {
-        self.cmds.push(effect.into());
-    }
-
-    fn rollback(&mut self) {}
-    
-    fn commit(&mut self) {}
-}
-
-// Shorthand for Arc Mutex just to aid readability
-pub type AM<T> = Arc<Mutex<T>>;
-
-pub struct C2Client<T: Sink<VmEffect>> {
-    pub c2syncerm: AM<C2Syncer<T>>,
-    pub cs: AM<C2ClientState>,
-    pub sink: AM<T>,
-    // pub syncer: AM<Syncer<C2PolicyStore, C2StorageProvider, T>>,
-    pub graph: Option<GraphId>,
-    pub store: fs_keystore::Store,
-    pub eng: DefaultEngine<Rng, DefaultCipherSuite>,
-    pub keys: crate::policy::PublicKeyBundle
-}
-
-struct PublicKeyBundle {
-    ident_key: IdentityKey<DefaultCipherSuite>,
-    sign_key: SigningKey<DefaultCipherSuite>,
-    enc_key: EncryptionKey<DefaultCipherSuite>,
-}
-
-impl<T: Sink<VmEffect>> C2Client<T>
-where 
-    T: Sink<VmEffect> + Send + Sync + 'static
-{
-    pub fn init(
-        policy_data: String,
-        // TODO: REmove this
-        _bind_addr: SocketAddr,
-        clientsink: T
-    ) -> Result<Self, ()> {
-        // Compile policy
-        let policy = match parse_policy_document(policy_data.as_str()) {
-            Ok(v) => v,
-            Err(v) => {
-                print!("Policy parsing error:\n{}\n", v.message);
-                return Err(());
-            }
-        };
-
-        let module = match Compiler::new(&policy).ffi_modules(&vec![
-            // NOTE: envelope messes up policy code, as it
-            //   says Envelope is defined, but if I delete the
-            //   struct definition, it then says it's not defined
-            aranya_envelope_ffi::Ffi::SCHEMA,
-            aranya_device_ffi::FfiDevice::SCHEMA,
-            aranya_perspective_ffi::FfiPerspective::SCHEMA,
-            C2Ffi::SCHEMA,
-            aranya_crypto_ffi::Ffi::<MemStore>::SCHEMA,
-            aranya_idam_ffi::Ffi::<MemStore>::SCHEMA,
-        ]).compile() {
-            Ok(v) => v,
-            Err(v) => {
-                print!("Policy compliation error:\n{:?}\n", v);
-                return Err(());
-            }
-        };
-
-        let (engine, _key) = DefaultEngine::from_entropy(spideroak_crypto::default::Rng);
-        let machine = Machine::from_module(module).unwrap();
 
         // TODO: No need for this rng because ident keys are used instead
         // let mut r = Rng::new();
@@ -275,310 +272,239 @@ where
         //     print!("{:?}\n", dest);
         
         // }
+        // TODO: End AFC test
 
 
         // TODO: Change dir name ?
-        let mut randdir = [0u8; 10];
 
-        for i in 0..10 {
-            let mut rng = rand::rng();
-            randdir[i] = rng.sample(rand::distr::Alphanumeric);
-        }
+        // let c2syncerm = Arc::new(Mutex::new(C2Syncer {
+        //     client: Arc::clone(&cs),
+        //     sink: Arc::clone(&sink),
+        //     connections: Vec::new(),
+        //     buffers: TraversalBuffers::new(),
+        //     remote_heads: BTreeMap::new()
+        // }));
+    }
 
-        // TODO: is /tmp really the best place for this
-        let dirpath = Path::new("/tmp").join(Path::new(std::str::from_utf8(&randdir).unwrap()));
+    // TODO: Can I make it not pass config_dir and instead store?
+    pub fn create_policy(
+        &self,
+        policy_data: &str,
+        id: DeviceId
+    ) -> Result<VmPolicy<DefaultEngine>, ()> {
+        let store = Store::open(self.config_dir).unwrap();
 
-        // TODO: A custom implementation of FileManager could always require
-        //   the creation of a directory instead of having this
-        let _ = std::fs::create_dir(
-            std::path::Path::new("/tmp").join(
-                std::path::Path::new(
-                    std::str::from_utf8(&randdir).unwrap()
-                )
-            )
-        );
-
-        let stdpath = std::path::Path::new("/tmp").join(
-                std::path::Path::new(
-                    std::str::from_utf8(&randdir).unwrap()
-                )
-            ).join(
-                std::path::Path::new("keys")
-            );
-        
-        let _ = std::fs::create_dir(&stdpath);
-
-        // TODO: MemStore will not work because I have to clone it,
-        //   so this has to work instead :O
-        
-        // let a = ;
-
-        let mut store = fs_keystore::Store::open(stdpath).unwrap();
-
-        // TODO: End AFC test
-
-        // TODO: figure out how to not .clone() below
-        // let store = MemStore::new();
-
-        let keys = PublicKeyBundle {
-            ident_key: IdentityKey::<DefaultCipherSuite>::new(&engine),
-            sign_key: SigningKey::<DefaultCipherSuite>::new(&engine),
-            enc_key: EncryptionKey::<DefaultCipherSuite>::new(&engine),
+        // Compile policy
+        let policy = match parse_policy_document(policy_data) {
+            Ok(v) => v,
+            Err(v) => {
+                print!("Policy parsing error:\n{}\n", v.message);
+                return Err(());
+            }
         };
 
-        let lol = crate::policy::PublicKeyBundle {
-            ident_key: postcard::to_vec::<IdentityVerifyingKey<DefaultCipherSuite>, 90>(&keys.ident_key.public().unwrap()).unwrap().to_vec(),
-            sign_key: postcard::to_vec::<VerifyingKey<DefaultCipherSuite>, 90>(&keys.sign_key.public().unwrap()).unwrap().to_vec(),
-            // TODO: Bro how long is this encryptionpublickey array meant to actually be ?
-            enc_key: postcard::to_vec::<EncryptionPublicKey<DefaultCipherSuite>, 150>(&keys.enc_key.public().unwrap()).unwrap().to_vec(),
+        let module = match Compiler::new(&policy).ffi_modules(&vec![
+            // NOTE: envelope messes up policy code, as it
+            //   says Envelope is defined, but if I delete the
+            //   struct definition, it then says it's not defined
+            aranya_envelope_ffi::Ffi::SCHEMA,
+            aranya_device_ffi::FfiDevice::SCHEMA,
+            aranya_perspective_ffi::FfiPerspective::SCHEMA,
+            C2Ffi::SCHEMA,
+            aranya_crypto_ffi::Ffi::<MemStore>::SCHEMA,
+            aranya_idam_ffi::Ffi::<MemStore>::SCHEMA,
+        ]).compile() {
+            Ok(v) => v,
+            Err(v) => {
+                print!("Policy compliation error:\n{:?}\n", v);
+                return Err(());
+            }
         };
 
-        let id = keys.ident_key.id().unwrap();
+        let machine = Machine::from_module(module).unwrap();
 
-        let policy = match VmPolicy::new(machine, engine.clone(), vec![
+        // TODO: TEST
+        // let (engine, key): (DefaultEngine, AeadKey<UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>>) = DefaultEngine::from_entropy(Rng);
+
+        match VmPolicy::new(machine, self.engine.clone(), vec![
             Box::from(aranya_envelope_ffi::Ffi),
             Box::from(aranya_device_ffi::FfiDevice::new(id)),
             Box::from(aranya_perspective_ffi::FfiPerspective),
             Box::from(C2Ffi),
             // TODO: Is it okay to clone ??? - yes but only because its filesystem
-            Box::from(aranya_crypto_ffi::Ffi::<fs_keystore::Store>::new(store.try_clone().unwrap())),
-            Box::from(aranya_idam_ffi::Ffi::<fs_keystore::Store>::new(store.try_clone().unwrap())),
+            Box::from(aranya_crypto_ffi::Ffi::<Store>::new(store.try_clone().unwrap())),
+            Box::from(aranya_idam_ffi::Ffi::<Store>::new(store.try_clone().unwrap())),
         ]) {
-            Ok(v) => v,
+            Ok(v) => Ok(v),
             Err(v) => {
                 print!("Failed to create VmPolicy:\n{:?}\n", v);
                 return Err(());
             }
-        };
-
-        // Instantiate new Aranya client state
-        let ps = C2PolicyStore { policy };
-
-        let ms = C2StorageProvider::new(FileManager::new(dirpath).unwrap());
-        let cs = Arc::new(Mutex::new(ClientState::new(ps, ms)));
-        let sink = Arc::new(Mutex::new(clientsink));
-
-        // New self-signed certificate for server
-        // NOTE: Using config here
-        // TODO: Look into how to create one per client
-        // let ck = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
-        // let key = ck.key_pair.serialize_pem();
-        // let cert = ck.cert.pem();
-
-        // Create server for incoming sync requests
-
-
-        // let (tx, _rx) = mpsc::unbounded_channel();
-        // let syncer = Arc::new(
-        //     Mutex::new(
-        //         Syncer::new(&*config::CERTIFICATE,
-        //             Arc::clone(&cs),
-        //             Arc::clone(&sink),
-        //             tx,
-        //             bind_addr
-        //         ).unwrap()
-        //     )
-        // );
-
-        // Start the Aranya syncer server
-        // tokio::spawn(run_syncer(Arc::clone(&syncer), server, rx));
-
-        // print!("{:?}", lol.sign_key);
-
-        // println!("{:?}", );
-        let _ = store.insert_key(&engine, keys.ident_key).unwrap();
-        // println!("{ident:?}");
-        let _ = store.insert_key(&engine, keys.sign_key).unwrap();
-        let _ = store.insert_key(&engine, keys.enc_key).unwrap();
-
-        let c2syncerm = Arc::new(Mutex::new(C2Syncer {
-            client: Arc::clone(&cs),
-            sink: Arc::clone(&sink),
-            connections: Vec::new(),
-            buffers: TraversalBuffers::new(),
-            remote_heads: BTreeMap::new()
-        }));
-
-        Ok(C2Client {
-            c2syncerm,
-            cs,
-            sink,
-            // syncer,
-            graph: None,
-            store,
-            eng: engine,
-            keys: lol
-        })
+        }
     }
 
-    pub async fn create_graph(&mut self) -> Result<GraphId, ()> {
-        let mut cs = self.cs.lock().await;
-        let sink: &mut T = &mut *self.sink.lock().await;
+    pub fn new_engine(&mut self) {
+        let (engine, key): (DefaultEngine, AeadKey) = DefaultEngine::from_entropy(Rng);
+        let _ = fs::write(self.config_dir.join(Path::new("key.bin")), key.try_export_secret().expect("Could not export secret").into_bytes());
+        self.engine = engine;
+    }
 
-        // let keys = PublicKeyBundle {
-        //     ident_key: IdentityKey::<DefaultCipherSuite>::new(&self.eng),
-        //     sign_key: SigningKey::<DefaultCipherSuite>::new(&self.eng),
-        //     enc_key: EncryptionKey::<DefaultCipherSuite>::new(&self.eng),
-        // };
+    // TODO: Really need &self here?
+    pub fn init_aranya(
+        &self,
+        policy: VmPolicy<DefaultEngine>
+    ) -> C2ClientState {
+        C2ClientState::new(
+            C2PolicyStore { policy },
+            C2StorageProvider::new(FileManager::new(self.config_dir).unwrap())
+        )
+    }
 
-        // TODO: Is it bad that i am creating a new DefaultEngine when
-        //   I already have one in the init() function above ?
-        // let (eng, _) = DefaultEngine::<_>::from_entropy(Rng);
+    pub fn load_keys(&self) -> PrivateKeyBundle {
+        let store = Store::open(self.config_dir).unwrap();
+        // let id = keybundle.ident_key.id().unwrap();
 
-        // let test = postcard::to_vec::<IdentityVerifyingKey<DefaultCipherSuite>, 90>(&keys.ident_key.public().unwrap()).unwrap();
-        // print!("{test:?}");
+        let conf = self.load_config();
 
-        // let lol = crate::policy::PublicKeyBundle {
-        //     ident_key: keys.ident_key.public().unwrap().id().unwrap().as_bytes().to_vec(),
-        //     sign_key: postcard::to_vec::<VerifyingKey<DefaultCipherSuite>, 90>(&keys.sign_key.public().unwrap()).unwrap().to_vec(),
-        //     enc_key: keys.enc_key.public().unwrap().id().unwrap().as_bytes().to_vec(),
-        // };
+        // Load ID of keys from config
+        let ident_id = <<IdentityKey<DefaultCipherSuite> as Identified>::Id>::from_str(&conf.ident_id).expect("ident_id");
+        let sign_id = <<SigningKey<DefaultCipherSuite> as Identified>::Id>::from_str(&conf.sign_id).expect("sign_id");
+        let enc_id = <<EncryptionKey<DefaultCipherSuite> as Identified>::Id>::from_str(&conf.enc_id).expect("enc_id");
 
-        // // print!("{:?}", lol.sign_key);
+        // TODO: Error handling for non-existant config (remove unwrap shit)
 
-        // // println!("{:?}", );
-        // let ident = self.store.insert_key(&self.eng, keys.ident_key).unwrap();
-        // // println!("{ident:?}");
-        // let sign = self.store.insert_key(&self.eng, keys.sign_key).unwrap();
-        // let enc = self.store.insert_key(&self.eng, keys.enc_key).unwrap();
+        // TODO: Temporary
+        println!("{}", ident_id);
+        // println!("{:?}", store.get_key(&self.engine, ident_id));
 
-        // Retrieve the stored identity key (DeviceId is the key identifier, not a key type).
-        // println!("{:?}", );
-        // let _ = self.store.get_key::<DefaultEngine, SigningKey<DefaultCipherSuite>>(&self.eng, sign);
-        // let _ = self.store.get_key::<DefaultEngine, EncryptionKey<DefaultCipherSuite>>(&self.eng, enc);
+        // Load private keys from Aranya store via public key/ID
+        PrivateKeyBundle {
+            ident_key: store.get_key(&self.engine, ident_id).unwrap().unwrap(),
+            sign_key: store.get_key(&self.engine, sign_id).unwrap().unwrap(),
+            enc_key: store.get_key(&self.engine, enc_id).unwrap().unwrap()
+        }
+    }
 
-        // let a: Vec<u8> = self.store.get_key::<DefaultEngine, IdentityKey<DefaultCipherSuite>>(&eng, ident).unwrap().unwrap().public().unwrap().try_into().unwrap();
+    // Load the C2 Aranya config
+    fn load_config(&self) -> C2Config {
+        // TODO: Make "config.yaml" a constant
+        let confpath = self.config_dir.join(Path::new("config.yaml"));
 
+        // Read data or default to no data
+        let data = match fs::read(&confpath) {
+            Ok(data) => String::from_utf8(data).expect("Lol no utf8"),
+            Err(_) => String::new()
+        };
 
-        // println!("{:?}", self.store.get_key::<DefaultEngine, IdentityKey<DefaultCipherSuite>>(&eng, ident).unwrap().unwrap().public().unwrap().to_bytes());
-        // println!("{:?}", self.store.get_key::<DefaultEngine, IdentityKey<DefaultCipherSuite>>(&eng, ident).unwrap().unwrap());
+        return serde_yaml::from_str(&data)
+            .expect("Lol no serde_yaml::from_str");
+    }
 
+    // Write to the C2 Aranya config file
+    fn write_config(&self, config: &C2Config) {
+        let confpath = self.config_dir.join(Path::new("config.yaml"));
+        let yaml = serde_yaml::to_string(config).expect("Could not write yaml");
+        let _ = fs::write(&confpath, yaml);
+    }
 
+    // Generate a set of identify, signing, and encryption keys.
+    // Will also write the keys to the config file
+    pub fn create_new_keys(&self) -> PrivateKeyBundle {
+        let mut store = Store::open(self.config_dir).unwrap();
 
-        // println!("{:?}", self.store.get_key::<_, IdentityKey<DefaultCipherSuite>>(&eng, myid));
+        let ident_key = IdentityKey::<DefaultCipherSuite>::new(&self.engine);
+        let sign_key = SigningKey::<DefaultCipherSuite>::new(&self.engine);
+        let enc_key = EncryptionKey::<DefaultCipherSuite>::new(&self.engine);
 
-        let graph = match cs.new_graph(
+        let _ = store.insert_key(&self.engine, ident_key.clone()).unwrap();
+        let _ = store.insert_key(&self.engine, sign_key.clone()).unwrap();
+        let _ = store.insert_key(&self.engine, enc_key.clone()).unwrap();
+
+        let mut conf = self.load_config();
+        conf.ident_id = ident_key.id().unwrap().to_string();
+        conf.sign_id = sign_key.id().unwrap().to_string();
+        conf.enc_id = enc_key.id().unwrap().to_string();
+        self.write_config(&conf);
+
+        return PrivateKeyBundle {
+            ident_key,
+            sign_key,
+            enc_key
+        };
+    }
+
+    // Create a new Aranya graph (with an Init command) and write
+    //   it to the Aranya config
+    pub fn create_graph<S: Sink<VmEffect>>(
+        &mut self,
+        cs: &mut C2ClientState,
+        sink: &mut S,
+        privkeys: &PrivateKeyBundle
+    ) -> Result<GraphId, ()> {
+        let pubkeys = PublicKeyBundle {
+            ident_key: postcard::to_vec::<IdentityVerifyingKey<DefaultCipherSuite>, 90>(&privkeys.ident_key.public().unwrap()).unwrap().to_vec(),
+            sign_key: postcard::to_vec::<VerifyingKey<DefaultCipherSuite>, 90>(&privkeys.sign_key.public().unwrap()).unwrap().to_vec(),
+            // TODO: Bro how long is this encryptionpublickey array meant to actually be ?
+            enc_key: postcard::to_vec::<EncryptionPublicKey<DefaultCipherSuite>, 150>(&privkeys.enc_key.public().unwrap()).unwrap().to_vec(),
+        };
+
+        match cs.new_graph(
             &vec![0],
-            vm_action!(init(self.keys.clone())),
+            vm_action!(init(pubkeys)),
             sink
         ) {
-            Ok(v) => v,
+            Ok(graph_id) => {
+                self.set_graph(graph_id);
+                Ok(graph_id)
+            },
             Err(v) => {
                 print!("New graph creation error:\n{:?}\n", v);
-                return Err(());
-            }
-        };
-
-        self.graph = Some(graph);
-
-        // TODO: Delete wtf is this? i forgot i wrote this
-        // match self.syncer.lock().await.push(graph) {
-        //     Ok(_) => {},
-        //     Err(v) => {
-        //         print!("Error syncing new graph:\n{:?}\n", v);
-        //     }
-        // }
-
-        return Ok(graph);
-    }
-
-    pub async fn do_action(&self, action: <C2VMPolicy as Policy>::Action<'_>) -> bool {
-        let mut cs = self.cs.lock().await;
-        let sink: &mut T = &mut *self.sink.lock().await;
-
-        match self.graph {
-            Some(graph) => {
-                if cs.action(graph, sink, action).is_err() {
-                    return false;
-                }
-            },
-            None => {
-                print!("Cannot do an action without creating a graph.\n");
-            }
-        }
-        return true;
-    }
-
-    pub async fn do_ephemeral_action(&self, action: <C2VMPolicy as Policy>::Action<'_>) {
-        let mut cs = self.cs.lock().await;
-        let sink: &mut T = &mut *self.sink.lock().await;
-
-        match self.graph {
-            Some(graph) => {
-                let mut msg_sink = TestSink::new();
-                let mut session = cs.session(graph).unwrap();
-                let _ = session.action(&cs, sink, &mut msg_sink, action);
-            },
-            None => {
-                print!("Cannot do an action without creating a graph.\n");
+                Err(())
             }
         }
     }
 
-    // pub async fn sync_with(
-    //     &mut self,
-    //     _addr: SocketAddr
+    // pub fn call_action(
+    //     &self,
+    //     cs: &mut C2ClientState,
+    //     sink: &mut S,
+    //     graph: GraphId,
+    //     action: <C2VMPolicy as Policy>::Action<'_>
     // ) {
-    //     // let graph = match self.graph {
-    //     //     Some(graph) => graph,
-    //     //     None => {
-    //     //         print!("Cannot do this action without creating a graph.\n");
-    //     //         return;
-    //     //     }
-    //     // };
-
-    //     // let mut rng = Rng::new();
-    //     // let req = SyncRequester::new(graph, &mut rng);
-
-    //     // let mut syncer = self.syncer.lock().await;
-    //     // let _ = syncer.sync(Arc::clone(&self.cs), addr, req, Arc::clone(&self.sink), graph).await;
+    //     if let Err(e) = cs.action(graph, sink, action) {
+    //         eprintln!("Error calling action: {}", e);
+    //     }
     // }
 
-    // pub async fn subscribe_to(
-    //     &mut self,
-    //     _addr: SocketAddr
-    // ) -> Result<(), QuicSyncError> {
-    //     // let graph = match self.graph {
-    //     //     Some(graph) => graph,
-    //     //     None => {
-    //     //         print!("Cannot do this action without creating a graph.\n");
-    //     //         // TODO: Kidna funny we are returning an OK when this is an error
-    //     //         return Ok(());
-    //     //     }
-    //     // };
+    // pub async fn do_ephemeral_action(&self, action: <C2VMPolicy as Policy>::Action<'_>) {
+    //     let mut cs = self.cs.lock().await;
+    //     let sink: &mut T = &mut *self.sink.lock().await;
 
-    //     // let mut rng = Rng::new();
-    //     // let req = SyncRequester::new(graph, &mut rng);
-
-    //     // let mut syncer = self.syncer.lock().await;
-    //     // return syncer.subscribe(Arc::clone(&self.cs), req, 5, u64::MAX, addr).await;
-    //     return Ok(());
-    // }
-
-    // pub async fn push_graph(&mut self) {
-    //     // let graph = match self.graph {
-    //     //     Some(graph) => graph,
-    //     //     None => {
-    //     //         print!("Cannot do this action without creating a graph.\n");
-    //     //         return;
-    //     //     }
-    //     // };
-
-    //     // let mut syncer = self.syncer.lock().await;
-    //     // let _ = syncer.push(graph);
+    //     match self.graph {
+    //         Some(graph) => {
+    //             let mut msg_sink = TestSink::new();
+    //             let mut session = cs.session(graph).unwrap();
+    //             let _ = session.action(&cs, sink, &mut msg_sink, action);
+    //         },
+    //         None => {
+    //             print!("Cannot do an action without creating a graph.\n");
+    //         }
+    //     }
     // }
 
     // TODO: Replace with config infected node ?
     #[allow(dead_code)] // May not be used in all implementations
-    pub fn set_graph(&mut self, graph: GraphId) {
-        self.graph = Some(graph);
+    pub fn set_graph(&mut self, graph_id: GraphId) {
+        let mut conf = self.load_config();
+        conf.graph_id = graph_id.to_string();
+        self.write_config(&conf);
+    }
+
+    pub fn get_graph(&mut self) -> GraphId {
+        let mut conf = self.load_config();
+        return GraphId::decode(conf.graph_id)
+            .expect("Could not decode graph ID from config");
     }
 }
 
-pub fn random_sync<T: Sink<VmEffect>>(syncer: &mut C2Syncer<T>, bind: Option<SocketAddr>) -> Vec<SocketAddr> {
-    if let Some(b) = bind {
-        syncer.connections.retain(|&e| e != b);
-    }
-    let clonedvec = syncer.connections.to_vec();
-    clonedvec.choose_multiple(&mut rand::rng(), 2).cloned().collect()
-}
+// 

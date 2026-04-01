@@ -4,37 +4,23 @@ mod policy;
 mod c2syncer;
 
 use std::{
-    io::{Write},
+    io::Write,
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::Path,
+    fs,
+    str::FromStr,
     sync::Arc,
+    time::Duration
 };
 
-use aranya_crypto::{CmdId, DeviceId};
-use aranya_policy_text::Text;
+use aranya_policy_vm::{Text, text};
 use aranya_runtime::{Sink, VmEffect, vm_action};
-use chrono::DateTime;
-use tokio::time::{Duration, sleep};
+use clap::Parser;
+use tokio::sync::Mutex;
 
-use crate::{c2syncer::{c2push, c2sync, new_quic_client, run_c2syncer}, common::{C2Client, random_sync}};
+use crate::{c2syncer::{C2Syncer, c2push, c2sync, new_quic_client}, common::C2Client};
 
-struct DeviceStatus {
-    device_id: DeviceId,
-    last_heartbeat: i64,
-    last_command: CmdId,
-    last_output: String,
-}
-
-struct OperatorSink {
-    pub devices: Vec<DeviceStatus>,
-}
-
-impl OperatorSink {
-    fn new() -> Self {
-        Self {
-            devices: Vec::new(),
-        }
-    }
-}
+struct OperatorSink {}
 
 impl Sink<VmEffect> for OperatorSink {
     fn begin(&mut self) {
@@ -45,84 +31,12 @@ impl Sink<VmEffect> for OperatorSink {
         // NOTE: No operation
     }
 
-    fn consume(&mut self, effect: VmEffect) {
-        if effect.name == "CommandResult" {
-            if let aranya_policy_vm::Value::String(s) = effect.fields[1].value() {
-                print!("Out: {}\n", s);
-            }
-        } else if effect.name == "QueryDevicesResult" {
-            // print!("YEp\n");
-            // println!("{:?}", effect);
-            if let aranya_policy_vm::Value::Id(device_id) = effect.fields[0].value() {
-                if let aranya_policy_vm::Value::Int(last_heartbeat) = effect.fields[2].value() {
-                    if let aranya_policy_vm::Value::Id(last_command) = effect.fields[1].value() {
-                        if let aranya_policy_vm::Value::String(last_output) =
-                            effect.fields[3].value()
-                        {
-                            let devid = DeviceId::from_base(*device_id);
-                            self.devices.retain(|v| v.device_id != devid);
-
-                            self.devices.push(DeviceStatus {
-                                device_id: DeviceId::from_base(*device_id),
-                                last_heartbeat: *last_heartbeat,
-                                last_command: CmdId::from_base(*last_command),
-                                last_output: String::from(last_output.as_str()),
-                            });
-                        }
-                    }
-                }
-            }
-        }
+    fn consume(&mut self, _effect: VmEffect) {
+        // NOTE: No operation
     }
 
     fn rollback(&mut self) {
         // NOTE: No operation
-    }
-}
-
-fn console_clear() {
-    let _ = std::io::stdout().write_all(b"\x1B[2J\x1B[1;1H");
-    let _ = std::io::stdout().flush();
-}
-
-fn print_header(aranya: &C2Client<OperatorSink>) {
-    let _ = std::io::stdout().write_all(b"\x1B[1;1H");
-    print!("Aranya C2 - Graph ID: ");
-
-    match aranya.graph {
-        Some(g) => {
-            print!("{}", g);
-        }
-        None => {
-            print!("No graph");
-        }
-    }
-
-    print!(
-        "\n\x1B[107;30m\nNode Identifier                              Last Heartbeat       Last Command ID                              Last Output"
-    );
-    print!("\x1B[0m\n");
-
-    let _ = std::io::stdout().flush();
-}
-
-async fn print_nodes(aranya: &C2Client<OperatorSink>) {
-    let sink = &mut *aranya.sink.lock().await;
-
-    for device in &sink.devices {
-        let niceoutput = device.last_output.replace("\n", "\\n");
-
-        // if niceoutput.len() > 15 {
-        //     niceoutput = niceoutput[0..15];
-        // }
-
-        println!(
-            "{} {:?} {} {}",
-            device.device_id,
-            DateTime::from_timestamp(device.last_heartbeat, 0).unwrap(),
-            device.last_command,
-            niceoutput
-        );
     }
 }
 
@@ -145,201 +59,143 @@ async fn print_nodes(aranya: &C2Client<OperatorSink>) {
 //     }
 // }
 
-fn main() {
+#[derive(Parser)]
+struct CommandArguments {
+    #[arg(long)]
+    new_graph: bool,
+
+    // TODO: Is this even possible ?
+    // #[arg(long)]
+    // list_commands: bool,
+
+    #[arg(long)]
+    config_dir: String,
+
+    #[arg(long)]
+    command: Option<String>,
+
+    #[arg(help = "Peer Addresses e.g. 127.0.0.1:4445")]
+    args: Vec<String>
+}
+
+#[tokio::main]
+async fn main() {
     // Enable logging to terminal
     tracing_subscriber::fmt::init();
 
+    let args = CommandArguments::parse();
+
     // Create new async runtime for the Aranya syncer.
     //   It needs a lot of stack memory
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .thread_stack_size(100 * 1024 * 1024)
-        .enable_all()
-        .build()
-        .unwrap();
+    // let rt = tokio::runtime::Builder::new_multi_thread()
+    //     .thread_stack_size(100 * 1024 * 1024)
+    //     .enable_all()
+    //     .build()
+    //     .unwrap();
 
     let bind = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 3)), 4445);
 
-    let mut aranya = C2Client::init(
-        config::POLICY.to_string(),
-        bind,
-        OperatorSink::new()
-    ).unwrap();
+    let dir = Path::new(&args.config_dir);
 
-    rt.block_on(async move {
-        let quica = {
+    let _ = fs::create_dir(&dir);
+    // TODO: {} required here or no ?
+    let mut sink = OperatorSink {};
+    let mut aranya = C2Client::new(dir);
+    // let keys = aranya.create_new_keys(dir);
+    
+    let keys = match args.new_graph {
+        true => {
+            aranya.new_engine();
+            aranya.create_new_keys()
+        },
+        false => {
+            aranya.load_keys()
+        }
+    };
+
+    let deviceid = keys.ident_key.id().unwrap();
+    let policy = aranya.create_policy(config::POLICY, deviceid).expect("Failed to create policy");
+    let mut clientstate = aranya.init_aranya(policy);
+
+    if args.new_graph {
+        let graph = match aranya.create_graph(&mut clientstate, &mut sink, &keys) {
+            Ok(v) => v,
+            Err(_) => return
+        };
+
+        // TODO: Temporary debug code for infected nodes to quickly
+        //   connect up to the same graph ID
+        fs::write("src/graph.txt", graph.as_array());
+    }
+
+    if let Some(command) = args.command {
+        let txt = Text::from_str(&command).unwrap();
+        clientstate.action(
+            aranya.get_graph(),
+            &mut sink,
+            vm_action!(execute_command(txt))
+        );
+
+        let quic = {
             let mut syncbind = bind.clone();
             syncbind.set_port(4446);
             Arc::new(new_quic_client(syncbind))
         };
 
-        tokio::spawn(
-            run_c2syncer(
-                Arc::clone(&aranya.c2syncerm),
-                Arc::clone(&quica),
-                bind
-            )
-        );
+        let syncer = Arc::new(Mutex::new(C2Syncer::new(clientstate, sink)));
 
-        let graph = match aranya.create_graph().await {
-            Ok(v) => v,
-            Err(_) => {
-                print!("Failed to create Aranya graph...");
-                return;
-            }
-        };
-
-        // TODO: Insane testing environemnt skills
-        let mut file = std::fs::File::create("src/graph.txt").unwrap();
-        file.write_all(graph.as_array());
-        // TODO: End skills
-
-        print!("Working on Graph ID `{}`\n", graph);
-
-        // TODO: AFC Test
-
-        // tokio::spawn(async {
-        //     afc_listener().await;
-        // });
-
-        // TODO: End AFC Test
-
-        let aranyaa = Arc::new(aranya);
-        let aranya = Arc::clone(&aranyaa);
-        let quic = Arc::clone(&quica);
-
-        tokio::spawn(async move {
-            loop {
-                let mut s = String::new();
-                std::io::stdin()
-                    .read_line(&mut s)
-                    .expect("String read error");
-
-                if s.starts_with("command ") {
-                    let (_, args) = s.split_once(' ').unwrap();
-                    print!("{}\n", args);
-
-                    use std::str::FromStr;
-                    let text = Text::from_str(args).unwrap();
-
-                    aranya.do_action(vm_action!(execute_command(text))).await;
-
-                    {
-                        let syncaddrs = {
-                            let syncerl = aranya.c2syncerm.lock().await;
-                            syncerl.connections.to_vec()
-                        };
-                
-                        for addr in syncaddrs {
-                            c2push(
-                                addr,
-                                Arc::clone(&quic),
-                                Arc::clone(&aranya.c2syncerm),
-                                graph
-                            ).await;
-
-                            // Need to sleep otherwise connection will
-                            //   not be made for some reason
-                            sleep(Duration::from_millis(10)).await;
-                        }
-                    }
-
-                } else if s.starts_with("connect ") {
-                    let (_, args) = s.split_once(' ').unwrap();
-                    
-                    if let Ok(addr) = args.trim().parse::<SocketAddr>() {
-                        let mut syncerl = aranya.c2syncerm.lock().await;
-                        if !syncerl.connections.contains(&addr) {
-                            syncerl.connections.push(addr);
-                        }
-                    } else {
-                        println!("Invalid address!");
-                    }
-                } else if s.starts_with("qc ") {
-                    let (_, args) = s.split_once(' ').unwrap();
-
-                    if let Ok(amt) = args.trim().parse::<u8>() {
-                        {
-                            let mut syncerl = aranya.c2syncerm.lock().await;
-                            for i in 1..amt+1 {
-                                let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 1, i)), 4445);
-                                if !syncerl.connections.contains(&addr) {
-                                    syncerl.connections.push(addr);
-                                    println!("aaa {addr}")
-                                }
-                            }
-                        }
-
-                        // let syncaddrs = {
-                        //     let mut syncerl = aranya.c2syncerm.lock().await;
-                        //     syncerl.connections.to_vec()
-                        // };
-
-                        // for addr in syncaddrs {
-                        //     sleep(Duration::from_millis(100)).await;
-                        //     c2push(
-                        //         addr,
-                        //         Arc::clone(&quic),
-                        //         Arc::clone(&aranya.c2syncerm),
-                        //         graph
-                        //     ).await;
-
-                        //     // Need to sleep otherwise connection will
-                        //     //   not be made for some reason
-                        //     sleep(Duration::from_millis(100)).await;
-                        // }
-
-                        
-                        // TODO: This is such a big hack. Without manually dropping
-                        //   this var, it will stay locked forever. I have no fkin
-                        //   idea why... (Whole program will hang for like eternity)
-                        // sleep(Duration::from_millis(100)).await;
-                        // let mut syncerl = aranya.c2syncerm.lock().await;
-                        // drop(syncerl);
-                        
-                        // println!("DOne this shit!!");
-                        // continue;
-                    }
-                }
-            }
-        });
-
-        let aranya = Arc::clone(&aranyaa);
-        let quic = Arc::clone(&quica);
-
-        loop {
-            sleep(Duration::from_millis(2000)).await;
-
-            aranya
-                .do_ephemeral_action(vm_action!(query_devices()))
-                .await;
-
-            console_clear();
-            print_header(&aranya);
-            print_nodes(&aranya).await;
-            // aranya.do_action(vm_action!(heartbeat(aranya.keys.clone()))).await;
-
-            let syncaddrs = {
-                let mut syncer = aranya.c2syncerm.lock().await;
-                random_sync(&mut syncer, Some(bind))
-            };
-                
-            for addr in syncaddrs {
-                c2push(
-                    addr,
-                    Arc::clone(&quic),
-                    Arc::clone(&aranya.c2syncerm),
-                    graph
-                ).await;
-
-                c2sync(
-                    addr,
-                    Arc::clone(&quic),
-                    Arc::clone(&aranya.c2syncerm),
-                    graph
-                ).await;
-
-                sleep(Duration::from_millis(10)).await;
-            }
+        for ipstr in args.args {
+            let socket: SocketAddr = ipstr.parse().expect("Invalid IP format");
+            c2push(socket, Arc::clone(&quic), Arc::clone(&syncer), aranya.get_graph()).await;
+            println!("SYNCED");
         }
-    });
+        
+        // TODO: This sleep is very important becasue without it, the
+        //   program will end and the data won't be transferred to
+        //   some of the peers, if any at all.
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+    }
+
+    // let graph = aranya.create_graph(&dir, &mut cs, &mut sink, &keys);
+
+    // let mut file = std::fs::File::create(dir.join(Path::new("config.yaml"))).expect("Cannot open file");
+    // let mut contents = String::new();
+    // file.read_to_string(&mut contents);
+
+    // let s = serde_yaml::from_str::<std::collections::BTreeMap<String, String>>(&contents).expect("YAML deserialisation failure");
+    // println!("{:?}", s.get("hi"));
+
+    // println!("{:?}", graph);
+
+    // rt.block_on(async move {
+    //     // if args.new_graph {
+    //     //     let graph = match aranya.create_graph().await {
+    //     //         Ok(v) => v,
+    //     //         Err(_) => {
+    //     //             print!("Failed to create Aranya graph...");
+    //     //             return;
+    //     //         }
+    //     //     };
+
+    //     //     let mut file = std::fs::File::create("src/graph.txt").unwrap();
+    //     //     file.write_all(graph.as_array()).expect("Failed to write to debug graph.txt");
+    //     // }
+
+    //     let quica = {
+    //         let mut syncbind = bind.clone();
+    //         syncbind.set_port(4446);
+    //         Arc::new(new_quic_client(syncbind))
+    //     };
+
+    //     // TODO: Insane testing environemnt skills
+    //     // TODO: End skills
+
+    //     // TODO: AFC Test
+
+    //     // tokio::spawn(async {
+    //     //     afc_listener().await;
+    //     // });
+
+    //     // TODO: End AFC Test
+    // });
 }

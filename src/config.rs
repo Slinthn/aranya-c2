@@ -2,6 +2,7 @@ use aranya_runtime::{ClientState, linear::{LinearStorageProvider, libc::FileMana
 
 use crate::common::C2PolicyStore;
 
+// TODO: Look into how to create one per client
 pub const CERTIFICATE: &str = r"
 -----BEGIN CERTIFICATE-----
 MIIBXjCCAQSgAwIBAgIUUPdWqg2k+pI1DAUFPi+iickl5rEwCgYIKoZIzj0EAwIw

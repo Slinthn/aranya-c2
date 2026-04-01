@@ -36,6 +36,8 @@ bytes = "1.11.1"
 postcard = "1.1.3"
 heapless = "0.8.0"
 rustix = "0.38.44"
+clap = { version = "4.6.0", features = ["derive"] }
+serde_yaml = "0.9.34"
 
 [[bin]]
 name = "operator"
