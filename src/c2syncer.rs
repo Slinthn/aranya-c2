@@ -130,7 +130,7 @@ async fn handle_request<S: Sink<VmEffect>>(
                 }
             };
 
-            println!("{sync_type:?}");
+            // println!("{sync_type:?}");
 
             if let SyncType::Poll { request } = sync_type {
                 let mut buffer = vec![0u8; MAX_SYNC_MESSAGE_SIZE];
@@ -160,11 +160,11 @@ async fn handle_request<S: Sink<VmEffect>>(
                 let _ = s.send_vectored(&mut [/* Bytes::from(postcard::to_allocvec(&syncaddrs).unwrap()), */ buffer.into()]).await;
             } else if let SyncType::Push { message, graph_id } = sync_type {
                 let mut requester = SyncRequester::new_session_id(graph_id, message.session_id());
-                println!("AAAA");
+                // println!("AAAA");
                 if let Ok(Some(commands)) = requester.get_sync_commands(message, remaining) && commands.len() > 0 {
                     let count = {
                         let mut syncer = syncerm.lock().await;
-                        println!("UPDATING COMMANDS");
+                        // println!("UPDATING COMMANDS");
                         update_commands(
                             &mut *syncer,
                             &commands,

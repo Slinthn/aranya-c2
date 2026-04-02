@@ -179,111 +179,6 @@ impl<'a> C2Client<'a> {
             engine,
             config_dir
         }
-
-        // TODO: No need for this rng because ident keys are used instead
-        // let mut r = Rng::new();
-        // let id = DeviceId::random(&mut r);
-
-        // TODO: AFC test
-        // let identity = IdentityKey::<DefaultCipherSuite>::new(&mut engine);
-        // let encryption = EncryptionKey::<DefaultCipherSuite>::new(&mut engine);
-
-        // let identity2 = IdentityKey::<DefaultCipherSuite>::new(&mut engine);
-        // let encryption2 = EncryptionKey::<DefaultCipherSuite>::new(&mut engine);
-
-        // let ch1 = UniChannel {
-        //     parent_cmd_id: CmdId::default(),
-        //     our_sk: &encryption,
-        //     their_pk: &encryption2.public().unwrap(),
-        //     seal_id: identity.id().unwrap(),
-        //     open_id: identity2.id().unwrap(),
-        //     label_id: LabelId::default()
-        // };
-
-        // let ch2 = UniChannel {
-        //     parent_cmd_id: ch1.parent_cmd_id,
-        //     our_sk: &encryption2,
-        //     their_pk: &encryption.public().unwrap(),
-        //     seal_id: identity2.id().unwrap(),
-        //     open_id: identity.id().unwrap(),
-        //     label_id: ch1.label_id
-        // };
-        
-
-        // use aranya_fast_channels::{
-        //     AfcState, AranyaState, Channel, Cli.ent, Directed, Error, LocalChannelId,
-        //     crypto::Aes256Gcm,
-        //     shm::{Flag, Mode, Path, ReadState, WriteState},
-        // };
-
-        // // TODO: Fix OpenOnly here
-        // let write_state1: WriteState<DefaultCipherSuite, Rng> = WriteState::open(
-        //     Path::from_bytes(b"/testing3\x00").unwrap(),
-        //     Flag::OpenOnly, Mode::ReadWrite, 42, Rng
-        // ).unwrap();
-
-        // let state1 = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
-        //     ReadState::open(
-        //         Path::from_bytes(b"/testing3\x00").unwrap(),
-        //         Flag::OpenOnly, Mode::ReadWrite, 42
-        //     ).unwrap()
-        // );
-
-        // let (mut eng, _) = DefaultEngine::from_entropy(Rng);
-        // let UniSecrets { author, peer } = UniSecrets::new(&mut eng, &ch1).unwrap();
-
-        // let channel1 = write_state1.add(Directed::SealOnly {
-        //     seal: UniSealKey::from_author_secret(&ch1, author).unwrap().into_raw_key()
-        // }, ch1.label_id, identity2.id().unwrap()).unwrap();
-
-
-        // let ciphertext = {
-        //     let mut dest = vec!(0u8; "Hello".len() + Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
-        //     let mut ctx = state1.setup_seal_ctx(channel1).unwrap();
-        //     state1.seal(&mut ctx, &mut dest, "Hello".as_bytes()).unwrap();
-        //     dest
-        // };
-
-        // print!("{:?}\n", ciphertext);
-
-
-        // let write_state2: WriteState<DefaultCipherSuite, Rng> = WriteState::open(
-        //     Path::from_bytes(b"/testing4\x00").unwrap(),
-        //     Flag::OpenOnly, Mode::ReadWrite, 42, Rng
-        // ).unwrap();
-    
-        // let channel2 = write_state2.add(Directed::OpenOnly {
-        //     open: UniOpenKey::from_peer_encap(&ch2, peer).unwrap().into_raw_key()
-        // }, ch1.label_id, identity.id().unwrap()).unwrap();
-
-        // let state2 = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
-        //     ReadState::open(
-        //         Path::from_bytes(b"/testing4\x00").unwrap(),
-        //         Flag::OpenOnly, Mode::ReadWrite, 42
-        //     ).unwrap()
-        // );
-
-
-        // {
-        //     let mut dest = vec!(0u8; ciphertext.len() - Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
-        //     let mut ctx = state2.setup_open_ctx(channel2).unwrap();
-        //     state2.open(&mut ctx, &mut dest, &ciphertext).unwrap();
-
-        //     print!("{:?}\n", dest);
-        
-        // }
-        // TODO: End AFC test
-
-
-        // TODO: Change dir name ?
-
-        // let c2syncerm = Arc::new(Mutex::new(C2Syncer {
-        //     client: Arc::clone(&cs),
-        //     sink: Arc::clone(&sink),
-        //     connections: Vec::new(),
-        //     buffers: TraversalBuffers::new(),
-        //     remote_heads: BTreeMap::new()
-        // }));
     }
 
     // TODO: Can I make it not pass config_dir and instead store?
@@ -349,7 +244,6 @@ impl<'a> C2Client<'a> {
         self.engine = engine;
     }
 
-    // TODO: Really need &self here?
     pub fn init_aranya(
         &self,
         policy: VmPolicy<DefaultEngine>
@@ -464,36 +358,7 @@ impl<'a> C2Client<'a> {
         }
     }
 
-    // pub fn call_action(
-    //     &self,
-    //     cs: &mut C2ClientState,
-    //     sink: &mut S,
-    //     graph: GraphId,
-    //     action: <C2VMPolicy as Policy>::Action<'_>
-    // ) {
-    //     if let Err(e) = cs.action(graph, sink, action) {
-    //         eprintln!("Error calling action: {}", e);
-    //     }
-    // }
-
-    // pub async fn do_ephemeral_action(&self, action: <C2VMPolicy as Policy>::Action<'_>) {
-    //     let mut cs = self.cs.lock().await;
-    //     let sink: &mut T = &mut *self.sink.lock().await;
-
-    //     match self.graph {
-    //         Some(graph) => {
-    //             let mut msg_sink = TestSink::new();
-    //             let mut session = cs.session(graph).unwrap();
-    //             let _ = session.action(&cs, sink, &mut msg_sink, action);
-    //         },
-    //         None => {
-    //             print!("Cannot do an action without creating a graph.\n");
-    //         }
-    //     }
-    // }
-
     // TODO: Replace with config infected node ?
-    #[allow(dead_code)] // May not be used in all implementations
     pub fn set_graph(&mut self, graph_id: GraphId) {
         let mut conf = self.load_config();
         conf.graph_id = graph_id.to_string();
@@ -506,5 +371,3 @@ impl<'a> C2Client<'a> {
             .expect("Could not decode graph ID from config");
     }
 }
-
-// 
