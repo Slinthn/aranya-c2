@@ -4,8 +4,8 @@ mod policy;
 mod c2syncer;
 
 use std::{
-    io::Write,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    io::{Write, Read},
+    net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener},
     path::Path,
     fs,
     str::FromStr,
@@ -13,15 +13,38 @@ use std::{
     time::Duration
 };
 
-use aranya_crypto::{CmdId, EncryptionKey, IdentityKey, Rng, afc::{UniChannel, UniOpenKey, UniSealKey, UniSecrets}, default::DefaultCipherSuite, policy::LabelId};
+use aranya_crypto::{CmdId, DeviceId, EncryptionKey, EncryptionPublicKey, IdentityKey, IdentityVerifyingKey, Rng, afc::{UniChannel, UniOpenKey, UniSealKey, UniSecrets}, default::{DefaultCipherSuite, DefaultEngine}, id::Id, policy::LabelId};
+use aranya_fast_channels::{AranyaState, Directed, shm::{Flag, Mode, ReadState, WriteState}};
 use aranya_policy_vm::{Text, text};
 use aranya_runtime::{Sink, VmEffect, vm_action};
 use clap::Parser;
 use tokio::sync::Mutex;
 
-use crate::{c2syncer::{C2Syncer, c2push, c2sync, new_quic_client}, common::C2Client};
+use crate::{c2syncer::{C2Syncer, c2push, c2sync, new_quic_client}, common::{C2Client, PrivateKeyBundle}};
 
 struct OperatorSink {}
+
+#[derive(Parser)]
+struct CommandArguments {
+    #[arg(long)]
+    new_graph: bool,
+
+    // TODO: Is this even possible ?
+    // #[arg(long)]
+    // list_commands: bool,
+
+    #[arg(long)]
+    start_afc: bool,
+
+    #[arg(long)]
+    config_dir: String,
+
+    #[arg(long)]
+    command: Option<String>,
+
+    #[arg(help = "Peer Addresses e.g. 127.0.0.1:4445")]
+    args: Vec<String>
+}
 
 impl Sink<VmEffect> for OperatorSink {
     fn begin(&mut self) {
@@ -41,42 +64,72 @@ impl Sink<VmEffect> for OperatorSink {
     }
 }
 
-// async fn afc_listener() {
-//     let listener = std::net::TcpListener::bind("127.0.0.1:4446").unwrap();
+async fn afc_listener(
+    mut engine: DefaultEngine<Rng, DefaultCipherSuite>,
+    peer_ident: DeviceId,
+    peer_enc: EncryptionPublicKey::<DefaultCipherSuite>,
+    keys: PrivateKeyBundle
+) {
+    let channel = UniChannel {
+        parent_cmd_id: CmdId::default(),
+        our_sk: &keys.enc_key,
+        their_pk: &keys.enc_key.public().unwrap(),
+        seal_id: Id::default(),
+        open_id: keys.ident_key.id().unwrap(),
+        label_id: LabelId::default()
+    };
 
-//     for stream in listener.incoming() {
-//         let mut buffer = [0; 1024];
+    let writestate: WriteState<DefaultCipherSuite, Rng> = match WriteState::open(
+        aranya_fast_channels::shm::Path::from_bytes(b"/afc1\0").unwrap(),
+        Flag::Create, Mode::ReadWrite, 42, Rng
+    ) {
+        Ok(v) => v,
+        Err(_) => {
+            // Already exists
+            WriteState::open(
+                aranya_fast_channels::shm::Path::from_bytes(b"/afc1\0").unwrap(),
+                Flag::OpenOnly, Mode::ReadWrite, 42, Rng
+            ).unwrap()
+        }
+    };
 
-//         match stream.unwrap().read(&mut buffer) {
-//             Ok(n) => {
-//                 println!("Data: {:?}", &buffer[..n]);
-//             }
-//             Err(_) => {}
-//         }
+    let secrets = UniSecrets::new(&mut engine, &channel).unwrap();
 
-//         // if let Ok(Some(req)) = stream.unwrap().receive().await {
-//         // println!("{:?}", req);
-//         // }
-//     }
-// }
+    let openchannel = writestate.add(Directed::OpenOnly {
+        open: UniOpenKey::from_peer_encap(&channel, secrets.peer).unwrap().into_raw_key()
+    }, channel.label_id, keys.ident_key.id().unwrap()).unwrap();
 
-#[derive(Parser)]
-struct CommandArguments {
-    #[arg(long)]
-    new_graph: bool,
+    let readstate = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
+        ReadState::open(
+            aranya_fast_channels::shm::Path::from_bytes(b"/afc1\x00").unwrap(),
+            Flag::OpenOnly, Mode::ReadWrite, 42
+        ).unwrap()
+    );
 
-    // TODO: Is this even possible ?
-    // #[arg(long)]
-    // list_commands: bool,
+    let listener = TcpListener::bind("127.0.0.1:4446").unwrap();
 
-    #[arg(long)]
-    config_dir: String,
+    for stream in listener.incoming() {
+        let mut buffer = [0; 1024];
 
-    #[arg(long)]
-    command: Option<String>,
+        match stream.unwrap().read(&mut buffer) {
+            Ok(n) => {
+                println!("{n}");
+                println!("Data: {:?}", &buffer[..n]);
 
-    #[arg(help = "Peer Addresses e.g. 127.0.0.1:4445")]
-    args: Vec<String>
+                // TODO: lol buffer is too big wth
+                let mut dest = vec!(0u8; n - aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
+                let mut ctx = readstate.setup_open_ctx(openchannel).unwrap();
+                readstate.open(&mut ctx, &mut dest, &buffer[..n]).unwrap();
+
+                print!("{:?}\n", dest);
+            }
+            Err(_) => {}
+        }
+
+        // if let Ok(Some(req)) = stream.unwrap().receive().await {
+        //     println!("{:?}", req);
+        // }
+    }
 }
 
 #[tokio::main]
@@ -153,88 +206,88 @@ async fn main() {
             open_id: peer_ident.id().unwrap(), // TODO: Remote
             label_id: LabelId::default()
         };
-        
-
-        use aranya_fast_channels::{
-            AfcState, AranyaState, Channel, Client, Directed, Error, LocalChannelId,
-            crypto::Aes256Gcm,
-            shm::{Flag, Mode, ReadState, WriteState},
-        };
-
-        let afcdir = dir.join("");
-
-        // // TODO: Fix OpenOnly here
-        // let nulpath = format!("{}\0", dir.join("afc").to_str().unwrap());
-        // println!("{nulpath}");
-        let write_state1: WriteState<DefaultCipherSuite, Rng> = match WriteState::open(
-            aranya_fast_channels::shm::Path::from_bytes(b"/afc\0").unwrap(),
-            Flag::Create, Mode::ReadWrite, 42, Rng
-        ) {
-            Ok(v) => v,
-            Err(_) => {
-                // Already exists
-                WriteState::open(
-                    aranya_fast_channels::shm::Path::from_bytes(b"/afc\0").unwrap(),
-                    Flag::OpenOnly, Mode::ReadWrite, 42, Rng
-                ).unwrap()
-            }
-        };
-
-        let read_state1 = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
-            ReadState::open(
-                aranya_fast_channels::shm::Path::from_bytes(b"/afc\0").unwrap(),
-                Flag::OpenOnly, Mode::ReadWrite, 42
-            ).unwrap()
-        );
-
-        let secrets1 = UniSecrets::new(&mut aranya.engine, &ch1).unwrap();
-
-        let channel1 = write_state1.add(Directed::SealOnly {
-            seal: UniSealKey::from_author_secret(&ch1, secrets1.author).unwrap().into_raw_key()
-        }, ch1.label_id, keys.ident_key.id().unwrap()).unwrap();
-
-        let ciphertext = {
-            let mut dest = vec!(0u8; "Hello".len() + Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
-            let mut ctx = read_state1.setup_seal_ctx(channel1).unwrap();
-            read_state1.seal(&mut ctx, &mut dest, "Hello".as_bytes()).unwrap();
-            dest
-        };
-
-        print!("{:?}\n", ciphertext);
 
 
-        let write_state2: WriteState<DefaultCipherSuite, Rng> = match WriteState::open(
-            aranya_fast_channels::shm::Path::from_bytes(b"/afc1\0").unwrap(),
-            Flag::Create, Mode::ReadWrite, 42, Rng
-        ) {
-            Ok(v) => v,
-            Err(_) => {
-                // Already exists
-                WriteState::open(
-                    aranya_fast_channels::shm::Path::from_bytes(b"/afc1\0").unwrap(),
-                    Flag::OpenOnly, Mode::ReadWrite, 42, Rng
-                ).unwrap()
-            }
-        };
+        // use aranya_fast_channels::{
+        //     AfcState, AranyaState, Channel, Client, Directed, Error, LocalChannelId,
+        //     crypto::Aes256Gcm,
+        //     shm::{Flag, Mode, ReadState, WriteState},
+        // };
+
+        // // let afcdir = dir.join("");
+
+        // // // TODO: Fix OpenOnly here
+        // // let nulpath = format!("{}\0", dir.join("afc").to_str().unwrap());
+        // // println!("{nulpath}");
+        // let write_state1: WriteState<DefaultCipherSuite, Rng> = match WriteState::open(
+        //     aranya_fast_channels::shm::Path::from_bytes(b"/afc\0").unwrap(),
+        //     Flag::Create, Mode::ReadWrite, 42, Rng
+        // ) {
+        //     Ok(v) => v,
+        //     Err(_) => {
+        //         // Already exists
+        //         WriteState::open(
+        //             aranya_fast_channels::shm::Path::from_bytes(b"/afc\0").unwrap(),
+        //             Flag::OpenOnly, Mode::ReadWrite, 42, Rng
+        //         ).unwrap()
+        //     }
+        // };
+
+        // let read_state1 = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
+        //     ReadState::open(
+        //         aranya_fast_channels::shm::Path::from_bytes(b"/afc\0").unwrap(),
+        //         Flag::OpenOnly, Mode::ReadWrite, 42
+        //     ).unwrap()
+        // );
+
+        // let secrets1 = UniSecrets::new(&mut aranya.engine, &ch1).unwrap();
+
+        // let channel1 = write_state1.add(Directed::SealOnly {
+        //     seal: UniSealKey::from_author_secret(&ch1, secrets1.author).unwrap().into_raw_key()
+        // }, ch1.label_id, keys.ident_key.id().unwrap()).unwrap();
+
+        // let ciphertext = {
+        //     let mut dest = vec!(0u8; "Hello".len() + Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
+        //     let mut ctx = read_state1.setup_seal_ctx(channel1).unwrap();
+        //     read_state1.seal(&mut ctx, &mut dest, "Hello".as_bytes()).unwrap();
+        //     dest
+        // };
+
+        // print!("{:?}\n", ciphertext);
+
+
+        // let write_state2: WriteState<DefaultCipherSuite, Rng> = match WriteState::open(
+        //     aranya_fast_channels::shm::Path::from_bytes(b"/afc1\0").unwrap(),
+        //     Flag::Create, Mode::ReadWrite, 42, Rng
+        // ) {
+        //     Ok(v) => v,
+        //     Err(_) => {
+        //         // Already exists
+        //         WriteState::open(
+        //             aranya_fast_channels::shm::Path::from_bytes(b"/afc1\0").unwrap(),
+        //             Flag::OpenOnly, Mode::ReadWrite, 42, Rng
+        //         ).unwrap()
+        //     }
+        // };
     
-        let channel2 = write_state2.add(Directed::OpenOnly {
-            open: UniOpenKey::from_peer_encap(&ch2, secrets1.peer).unwrap().into_raw_key()
-        }, ch1.label_id, keys.ident_key.id().unwrap()).unwrap();
+        // let channel2 = write_state2.add(Directed::OpenOnly {
+        //     open: UniOpenKey::from_peer_encap(&ch2, secrets1.peer).unwrap().into_raw_key()
+        // }, ch1.label_id, keys.ident_key.id().unwrap()).unwrap();
 
-        let read_state2 = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
-            ReadState::open(
-                aranya_fast_channels::shm::Path::from_bytes(b"/afc1\x00").unwrap(),
-                Flag::OpenOnly, Mode::ReadWrite, 42
-            ).unwrap()
-        );
+        // let read_state2 = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
+        //     ReadState::open(
+        //         aranya_fast_channels::shm::Path::from_bytes(b"/afc1\x00").unwrap(),
+        //         Flag::OpenOnly, Mode::ReadWrite, 42
+        //     ).unwrap()
+        // );
 
-        {
-            let mut dest = vec!(0u8; ciphertext.len() - Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
-            let mut ctx = read_state2.setup_open_ctx(channel2).unwrap();
-            read_state2.open(&mut ctx, &mut dest, &ciphertext).unwrap();
+        // {
+        //     let mut dest = vec!(0u8; ciphertext.len() - Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
+        //     let mut ctx = read_state2.setup_open_ctx(channel2).unwrap();
+        //     read_state2.open(&mut ctx, &mut dest, &ciphertext).unwrap();
 
-            print!("{:?}\n", dest);
-        }
+        //     print!("{:?}\n", dest);
+        // }
         // TODO: End AFC test
 
     if let Some(command) = args.command {
@@ -263,6 +316,21 @@ async fn main() {
         //   program will end and the data won't be transferred to
         //   some of the peers, if any at all.
         tokio::time::sleep(Duration::from_millis(1000)).await;
+    }
+
+    if args.start_afc {
+        // TODO: Random keys
+        let peer_ident = IdentityKey::<DefaultCipherSuite>::new(
+            &mut aranya.engine
+        ).id().unwrap();
+
+        let peer_enc = EncryptionKey::<DefaultCipherSuite>::new(
+            &mut aranya.engine
+        ).public().unwrap();
+
+        tokio::spawn(afc_listener(aranya.engine.clone(), peer_ident, peer_enc, keys));
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        aranya.setup_fast_channel();
     }
 
     // let graph = aranya.create_graph(&dir, &mut cs, &mut sink, &keys);

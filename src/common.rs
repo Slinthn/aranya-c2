@@ -1,15 +1,23 @@
 use std::{
+    io::Write,
     str::FromStr,
     path::Path,
-    fs
+    fs,
+    net::TcpStream
 };
 
-use aranya_crypto::dangerous::spideroak_crypto::aead::Aead;
+use aranya_crypto::afc::{UniChannel, UniSealKey, UniSecrets};
+// TODO: Rename TestAeadKey
+use aranya_crypto::dangerous::spideroak_crypto::aead::{Aead, AeadKey as TestAeadKey};
 use aranya_crypto::dangerous::spideroak_crypto::import::Import;
 use aranya_crypto::dangerous::spideroak_crypto::keys::SecretKey;
 use aranya_crypto::default::DefaultCipherSuite;
+use aranya_crypto::id::Id;
 use aranya_crypto::keystore::fs_keystore::Store;
 use aranya_crypto::keystore::memstore::MemStore;
+use aranya_crypto::policy::LabelId;
+use aranya_fast_channels::{AranyaState, Client as AfcClient, Directed};
+use aranya_fast_channels::shm::{Flag, Mode, Path as ShmPath, ReadState, WriteState};
 use aranya_runtime::linear::{
     libc::FileManager
 };
@@ -55,10 +63,6 @@ impl PolicyStore for C2PolicyStore {
     }
 }
 
-// TODO: Can use ModelPolicyStore ?
-impl C2PolicyStore {
-}
-
 pub struct C2Ffi;
 
 #[ffi(module = "c2")]
@@ -96,38 +100,10 @@ impl C2Ffi {
     }
 }
 
-// pub(crate) struct TestSink {
-//     cmds: Vec<Box<[u8]>>
-// }
-
-// impl TestSink {
-//     fn new() -> Self {
-//         Self {
-//             cmds: Vec::new()
-//         }
-//     }
-// }
-
-// impl Sink<&[u8]> for TestSink {
-//     fn begin(&mut self) {}
-    
-//     fn consume(&mut self, effect: &[u8]) {
-//         self.cmds.push(effect.into());
-//     }
-
-//     fn rollback(&mut self) {}
-    
-//     fn commit(&mut self) {}
-// }
-
-// TODO: rm comment - Aead key, lol i had to fight rust to figure out this type wtf, before i was
-//   using AeadKey<UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>>
 pub type AeadKey = <<DefaultCipherSuite as CipherSuite>::Aead as Aead>::Key;
 
 pub struct C2Client<'a> {
     pub engine: DefaultEngine<Rng, DefaultCipherSuite>,
-    // TODO: Bro what should this type actually be ? wtf...
-    // pub key: AeadKey,
     pub config_dir: &'a Path
 }
 
@@ -150,10 +126,9 @@ pub struct C2Config {
     graph_id: String
 }
 
-
 impl<'a> C2Client<'a> {
     pub fn new(config_dir: &'a Path) -> Self {
-        let confpath = config_dir.join(Path::new("key.bin"));
+        let confpath = config_dir.join("key.bin");
         // TODO: copied in new_engine
         let engine = match fs::read(&confpath) {
             Ok(data) => {
@@ -217,9 +192,6 @@ impl<'a> C2Client<'a> {
         };
 
         let machine = Machine::from_module(module).unwrap();
-
-        // TODO: TEST
-        // let (engine, key): (DefaultEngine, AeadKey<UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>>) = DefaultEngine::from_entropy(Rng);
 
         match VmPolicy::new(machine, self.engine.clone(), vec![
             Box::from(aranya_envelope_ffi::Ffi),
@@ -336,10 +308,19 @@ impl<'a> C2Client<'a> {
         privkeys: &PrivateKeyBundle
     ) -> Result<GraphId, ()> {
         let pubkeys = PublicKeyBundle {
-            ident_key: postcard::to_vec::<IdentityVerifyingKey<DefaultCipherSuite>, 90>(&privkeys.ident_key.public().unwrap()).unwrap().to_vec(),
-            sign_key: postcard::to_vec::<VerifyingKey<DefaultCipherSuite>, 90>(&privkeys.sign_key.public().unwrap()).unwrap().to_vec(),
+            ident_key: postcard::to_vec::
+                <IdentityVerifyingKey<DefaultCipherSuite>, 90>(
+                    &privkeys.ident_key.public().unwrap()
+                ).unwrap().to_vec(),
+            sign_key: postcard::to_vec::
+                <VerifyingKey<DefaultCipherSuite>, 90>(
+                    &privkeys.sign_key.public().unwrap()
+                ).unwrap().to_vec(),
             // TODO: Bro how long is this encryptionpublickey array meant to actually be ?
-            enc_key: postcard::to_vec::<EncryptionPublicKey<DefaultCipherSuite>, 150>(&privkeys.enc_key.public().unwrap()).unwrap().to_vec(),
+            enc_key: postcard::to_vec::
+                <EncryptionPublicKey<DefaultCipherSuite>, 150>(
+                    &privkeys.enc_key.public().unwrap()
+                ).unwrap().to_vec(),
         };
 
         match cs.new_graph(
@@ -369,5 +350,86 @@ impl<'a> C2Client<'a> {
         let mut conf = self.load_config();
         return GraphId::decode(conf.graph_id)
             .expect("Could not decode graph ID from config");
+    }
+
+    // This method will set up the required structures and configurations
+    //   to open up a uni-directional channel from this Aranya instance to
+    //   the operator node. Keys must be created before this function is
+    //   called.
+    pub fn setup_fast_channel(&mut self) {
+        let keys = self.load_keys();
+
+        // TODO: Get these off the graph
+        let owner_ident = IdentityKey::<DefaultCipherSuite>::new(
+            &mut self.engine
+        ).id().unwrap();
+
+        // Deterministic key generation
+        // let key = TestAeadKey::import(&[0u 8; 32]).unwrap();
+        // let (engine, key): (DefaultEngine, AeadKey) = DefaultEngine::new(key,Rng);
+
+        let enc = EncryptionKey::<DefaultCipherSuite>::new(
+            &mut self.engine
+        );
+
+        let ident_id = keys.ident_key.id().unwrap();
+
+        let channel = UniChannel {
+            // Don't care about the command id, since this is off-graph
+            parent_cmd_id: CmdId::default(),
+            // our_sk: &enc,
+            our_sk: &keys.enc_key,
+            their_pk: &keys.enc_key.public().unwrap(),
+            // seal_id: owner_ident,
+            seal_id: Id::default(),
+            // open_id: ident_id,
+            open_id: keys.ident_key.id().unwrap(),
+            // Again, no policy code so we don't care about this
+            label_id: LabelId::default()
+        };
+
+        enc
+
+        let dir = ShmPath::from_bytes(b"/afc\0").unwrap();
+        
+        let writestate: WriteState<DefaultCipherSuite, Rng>;
+        writestate = match WriteState::open(
+            dir,
+            Flag::Create, Mode::ReadWrite, 42, Rng
+        ) {
+            Ok(v) => v,
+            Err(_) => {
+                // Already exists, so just open instead of creating
+                WriteState::open(
+                    dir,
+                    Flag::OpenOnly, Mode::ReadWrite, 42, Rng
+                ).unwrap()
+            }
+        };
+
+        let readstate = AfcClient::<ReadState<DefaultCipherSuite>>::new(
+            ReadState::open(
+                dir,
+                Flag::OpenOnly, Mode::ReadWrite, 42
+            ).unwrap()
+        );
+
+        let secrets = UniSecrets::new(&mut self.engine, &channel).unwrap();
+
+        let writechannel = writestate.add(Directed::SealOnly {
+            seal: UniSealKey::from_author_secret(&channel, secrets.author).unwrap().into_raw_key()
+        }, channel.label_id, ident_id).unwrap();
+
+        let ciphertext = {
+            let mut dest = vec!(0u8; "Hello".len() + AfcClient::<ReadState<DefaultCipherSuite>>::OVERHEAD);
+            let mut ctx = readstate.setup_seal_ctx(writechannel).unwrap();
+            readstate.seal(&mut ctx, &mut dest, "Hello".as_bytes()).unwrap();
+            dest
+        };
+
+        print!("{:?}\n", ciphertext);
+
+        let mut stream = TcpStream::connect("127.0.0.1:4446").unwrap();
+        stream.write(&ciphertext);
     }
 }
