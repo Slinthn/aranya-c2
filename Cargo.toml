@@ -38,6 +38,8 @@ heapless = "0.8.0"
 rustix = "0.38.44"
 clap = { version = "4.6.0", features = ["derive"] }
 serde_yaml = "0.9.34"
+rsa = { version = "0.9.10", features = ["sha2"] }
+aes = "0.8.4"
 
 [[bin]]
 name = "operator"

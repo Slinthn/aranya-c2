@@ -47,7 +47,6 @@ async fn update_commands<S: Sink<VmEffect>>(
 ) -> usize {
     let aranya = &mut syncer.clientstate;
     let sink = &mut syncer.sink;
-
     let primary = &mut syncer.buffers.primary;
 
     let mut tx = aranya.transaction(graph);
@@ -363,7 +362,7 @@ pub async fn c2push<S: Sink<VmEffect>>(
 }
 
 pub async fn run_c2syncer<S: Sink<VmEffect> + Send + 'static>(
-    syncer: C2Syncer<S>,
+    syncer: AM<C2Syncer<S>>,
     client: QuicClient,
     bind: SocketAddr
 ) {
@@ -385,13 +384,12 @@ pub async fn run_c2syncer<S: Sink<VmEffect> + Send + 'static>(
     //     c2push();
     // }
 
-    let syncera = Arc::new(Mutex::new(syncer));
     let clienta = Arc::new(client);
 
     loop {
         match server.accept().await {
             Some(conn) => {
-                let syncerc = Arc::clone(&syncera);
+                let syncerc = Arc::clone(&syncer);
                 let clientc = Arc::clone(&clienta);
 
                 tokio::spawn(async move {

