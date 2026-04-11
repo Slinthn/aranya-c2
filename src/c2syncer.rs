@@ -5,7 +5,7 @@ use std::{
     time::Duration,
     vec::Vec
 };
-use aranya_crypto::Rng;
+use aranya_crypto::Rng as AranyaRng;
 use aranya_runtime::{
     COMMAND_RESPONSE_MAX, Command, GraphId, MAX_SYNC_MESSAGE_SIZE, PeerCache, Sink, SyncCommand, SyncRequestMessage, SyncRequester, SyncResponder, SyncType, TraversalBuffers, VmEffect
 };
@@ -13,6 +13,10 @@ use bytes::Bytes;
 use heapless::Vec as HeaplessVec;
 use s2n_quic::{Client as QuicClient, Connection, Server, client::Connect, provider::limits::Limits};
 use tokio::{sync::Mutex, time::sleep};
+use rand::{
+    Rng,
+    prelude::*
+};
 
 use crate::{config::{self, C2ClientState}};
 
@@ -39,7 +43,7 @@ impl<S: Sink<VmEffect>> C2Syncer<S> {
     }
 }
 
-async fn update_commands<S: Sink<VmEffect>>(
+fn update_commands<S: Sink<VmEffect>>(
     syncer: &mut C2Syncer<S>,
     commands: &HeaplessVec<SyncCommand<'_>, COMMAND_RESPONSE_MAX>,
     remote_addr: SocketAddr,
@@ -138,10 +142,10 @@ async fn handle_request<S: Sink<VmEffect>>(
                 // TODO: Error handling ??
                 let _ = responder.receive(request);
 
-                // let syncaddrs = {
-                //     let syncer = syncerm.lock().await;
-                //     syncer.connections.to_vec()
-                // };
+                let syncaddrs = {
+                    let syncer = syncerm.lock().await;
+                    syncer.connections.to_vec()
+                };
 
                 {
                     let syncer = &mut *syncerm.lock().await;
@@ -156,7 +160,7 @@ async fn handle_request<S: Sink<VmEffect>>(
                     );
                 }
 
-                let _ = s.send_vectored(&mut [/* Bytes::from(postcard::to_allocvec(&syncaddrs).unwrap()), */ buffer.into()]).await;
+                let _ = s.send_vectored(&mut [Bytes::from(postcard::to_allocvec(&syncaddrs).unwrap()), buffer.into()]).await;
             } else if let SyncType::Push { message, graph_id } = sync_type {
                 let mut requester = SyncRequester::new_session_id(graph_id, message.session_id());
                 // println!("AAAA");
@@ -169,7 +173,7 @@ async fn handle_request<S: Sink<VmEffect>>(
                             &commands,
                             addr,
                             graph_id
-                        ).await
+                        )
                     };
 
                     // TODO: What if invalid commands ? don't do this next part then
@@ -231,7 +235,7 @@ pub async fn c2sync<S: Sink<VmEffect>>(
         let stream = c.open_bidirectional_stream().await;
 
         if let Ok(mut s) = stream {
-            let mut requester = SyncRequester::new(graph, Rng);
+            let mut requester = SyncRequester::new(graph, AranyaRng);
             
             let mut buffer = vec![0u8; MAX_SYNC_MESSAGE_SIZE];
             
@@ -265,14 +269,25 @@ pub async fn c2sync<S: Sink<VmEffect>>(
                 let _ = recv.extend_from_slice(&data);
             }
 
-            if let Ok(Some(recvdata)) = requester.receive(&recv) {
+            let (peers, remaining) = match postcard::take_from_bytes::<Vec<SocketAddr>>(recv.as_slice()) {
+                Ok((peers, remaining)) => (peers, remaining),
+                Err(_) => {
+                    println!("Error parsing peers");
+                    return;
+                }
+            };
+
+            if let Ok(Some(recvdata)) = requester.receive(&remaining) {
                 let mut syncer = syncerm.lock().await;
+                println!("Updating the commands now");
                 update_commands(
                     &mut *syncer,
                     &recvdata,
                     remote_addr,
                     graph
-                ).await;
+                );
+            } else {
+                println!("Error receiving commands sync");
             }
         }
         c.close(0u32.into());
@@ -289,7 +304,6 @@ pub async fn c2push<S: Sink<VmEffect>>(
     let mut commands = HeaplessVec::new();
 
     // Random session ID
-    use rand::prelude::*;
     let mut dst = [0u8; 16];
     rand::rng().fill_bytes(&mut dst);
     let session_id = u128::from_le_bytes(dst);
@@ -346,7 +360,7 @@ pub async fn c2push<S: Sink<VmEffect>>(
                                 buffer.into()
                             ]).await {
                                 Ok(()) => {},
-                                Err(e) => eprintln!("send_vecotred: {}", e)
+                                Err(e) => eprintln!("send_vectored: {}", e)
                             };
                         }
                     }
@@ -361,9 +375,77 @@ pub async fn c2push<S: Sink<VmEffect>>(
     }
 }
 
+// Almost replica of c2push but for the operator because of
+//   the way the code is written, it's not possible to make a
+//   C2Syncer and pass in the clientstate... otherwise all my
+//   functions will become async and everything will be await
+//   and locks everywhere :(
+pub fn c2push_sync(
+    remote_addr: SocketAddr,
+    client: Arc<QuicClient>,
+    clientstate: &mut C2ClientState,
+    graph: GraphId
+) {
+    let mut responder = SyncResponder::new();
+    let mut commands = HeaplessVec::new();
+
+    // Random session ID
+    let mut dst = [0u8; 16];
+    rand::rng().fill_bytes(&mut dst);
+    let session_id = u128::from_le_bytes(dst);
+
+    let _ = responder.receive(SyncRequestMessage::SyncRequest {
+        session_id,
+        graph_id: graph,
+        max_bytes: 0,
+        commands,
+    });
+
+    let mut buffer = vec![0u8; MAX_SYNC_MESSAGE_SIZE];
+
+    let mut tbuffers = TraversalBuffers::new();
+    match responder.push(
+        &mut buffer,
+        clientstate.provider(),
+        &mut tbuffers
+    ) {
+        Ok(len) => {
+            buffer.truncate(len);
+
+            if len > 0 {
+                tokio::spawn(async move {
+                    let conn = client
+                        .connect(Connect::new(remote_addr).with_server_name("localhost"))
+                        .await;
+
+                    if let Ok(mut c) = conn {
+                        let _ = c.keep_alive(true);
+                        let stream = c.open_bidirectional_stream().await;
+                        if let Ok(mut s) = stream {
+                            let emptyvec: Vec<SocketAddr> = Vec::new();
+                            match s.send_vectored(&mut [
+                                Bytes::from(postcard::to_allocvec(&emptyvec).unwrap()),
+                                buffer.into()
+                            ]).await {
+                                Ok(()) => {},
+                                Err(e) => eprintln!("send_vectored: {}", e)
+                            };
+                        }
+                    }
+                });
+            }
+        },
+        Err(e) => {
+            println!("Error sending c2push data");
+            println!("{graph}");
+            println!("{e:?}");
+        }
+    }
+}
+
 pub async fn run_c2syncer<S: Sink<VmEffect> + Send + 'static>(
     syncer: AM<C2Syncer<S>>,
-    client: QuicClient,
+    client: Arc<QuicClient>,
     bind: SocketAddr
 ) {
     let mut server = match Server::builder()
@@ -384,13 +466,11 @@ pub async fn run_c2syncer<S: Sink<VmEffect> + Send + 'static>(
     //     c2push();
     // }
 
-    let clienta = Arc::new(client);
-
     loop {
         match server.accept().await {
             Some(conn) => {
                 let syncerc = Arc::clone(&syncer);
-                let clientc = Arc::clone(&clienta);
+                let clientc = Arc::clone(&client);
 
                 tokio::spawn(async move {
                     handle_request(conn, clientc, syncerc).await;

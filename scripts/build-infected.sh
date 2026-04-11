@@ -1,2 +1,2 @@
 cargo build --bin infected
-docker build --build-arg TYPE=infected .
+docker build -t infected --build-arg TYPE=infected .

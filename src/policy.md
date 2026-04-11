@@ -26,6 +26,12 @@ fact DeviceRsaPk[device_id id] => {
     e bytes
 }
 
+// This int is not really a key. It's only value will ever be
+//   0. It's like a global variable in this policy
+fact LastCallback[a int] => {
+    callback string
+}
+
 function do_seal(payload bytes) struct Envelope {
     let parent_id = perspective::head_id()
     let device_id = device::current_device_id()
@@ -108,6 +114,7 @@ command Init {
         finish {
             create DeviceSignPk[device_id: device_id] => {key: this.keys.sign_key}
             create DeviceIdentPk[device_id: device_id] => {key: this.keys.ident_key}
+            create LastCallback[a: 0] => {callback: ""}
         }
     }
 }
@@ -217,6 +224,54 @@ command UpdateRsaKey {
     }
 }
 
+effect UpdateCallbackC2Effect {
+    address string
+}
+
+command UpdateCallbackC2 {
+    attributes {
+        priority: 100
+    }
+
+    fields {
+        address string
+    }
+
+    seal {
+        return do_seal(serialize(this))
+    }
+
+    open {
+        return deserialize(do_open(envelope))
+    }
+
+    policy {
+        check is_owner(envelope)
+
+        let device_id = envelope::author_id(envelope)
+
+        let last_callback = check_unwrap query LastCallback[a: 0]
+
+        finish {
+            emit UpdateCallbackC2Effect {
+                address: this.address
+            }
+
+            update LastCallback[a: 0] => {
+                callback: last_callback.callback
+            } to {
+                callback: this.address
+            }
+        }
+    }
+}
+
+action update_callback_c2(address string) {
+    publish UpdateCallbackC2 {
+        address: address
+    }
+}
+
 // Action to allow the network operator/owner to update its
 //   public key for data encryption
 action update_rsa_key(n bytes, e bytes) {
@@ -309,6 +364,45 @@ ephemeral command QueryOwnerKey {
     }
 }
 
+effect QueryCallbackResult {
+    callback string
+}
+
+ephemeral command QueryCallback {
+    fields {
+        callback string
+    }
+
+    seal {
+        // We don't care about any crypto stuff for
+        //   ephemeral commands
+        let randomid = perspective::head_id()
+
+        let s = serialize(this)
+
+        return envelope::new(
+            randomid,
+            randomid,
+            randomid,
+            s,
+            s
+        )
+    }
+
+    open {
+        // No need for crypto
+        return deserialize(envelope.payload)
+    }
+
+    policy {
+        finish {
+            emit QueryCallbackResult {
+                callback: this.callback
+            }
+        }
+    }
+}
+
 // There should only be one entry in here, so we can just
 //   loop like this and it will only ever publish once
 ephemeral action get_owner_key() {
@@ -316,6 +410,16 @@ ephemeral action get_owner_key() {
         publish QueryOwnerKey {
             n: device.n,
             e: device.e
+        }
+    }
+}
+
+ephemeral action get_last_callback() {
+    let callback = query LastCallback[a: 0]
+    if !(callback is None) {
+        let callback_unwrap = unwrap callback
+        publish QueryCallback {
+            callback: callback_unwrap.callback
         }
     }
 }

