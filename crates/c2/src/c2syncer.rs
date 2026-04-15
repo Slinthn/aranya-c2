@@ -436,8 +436,6 @@ pub fn c2push_sync(
 
         let mut buffer = vec![0u8; MAX_SYNC_MESSAGE_SIZE];
 
-
-
         let mut tbuffers = TraversalBuffers::new();
         match responder.push(
             &mut buffer,
@@ -536,23 +534,15 @@ pub async fn run_c2syncer<S: Sink<VmEffect> + Send + 'static>(
     client: Arc<QuicClient>,
     bind: SocketAddr
 ) {
-    let mut server = match Server::builder()
+    let Ok(mut server) = Server::builder()
         .with_tls((config::CERTIFICATE, config::KEY))
         .unwrap()
         .with_io(bind)
         .unwrap()
-        .start()
-    {
-        Ok(v) => v,
-        Err(e) => {
-            print!("Failed to start server:\n{:?}\n", e);
-            return;
-        }
+        .start() else {
+        print!("Failed to start server");
+        return;
     };
-
-    // for host in syncer.connections {
-    //     c2push();
-    // }
 
     loop {
         match server.accept().await {

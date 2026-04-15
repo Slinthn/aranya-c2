@@ -16,8 +16,10 @@ trap "kill_everything" SIGTERM SIGINT EXIT
 
 echo "Starting infected nodes with Docker..."
 
-for i in {1..50}; do
-    docker run --name "infected-$i" -d --network=aranyanet --ip=172.20.1.$i $1
+for i in {0..200}; do
+    oct4=$(( i % 256 ))
+    oct3=$(( (i / 256) + 1 ))
+    docker run --name "infected-$i" -d --network=aranyanet --ip=172.20.$oct3.$oct4 $1 &
 done
 
 # Singular exposed instance (i.e. like not behind firewall idea)

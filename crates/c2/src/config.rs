@@ -26,10 +26,7 @@ m0PApkfut4jt9jb+zdNdpxVs6qBKMKIbAAanvjA3AFVcw5ukw4EMzRl3
 
 pub const POLICY: &str = include_str!("policy.md");
 
-// pub const GRAPH: &str = "9cfBkPsoQ2NPHYPi7b69bcQG8FKfNc33k2UfRxiPFyd9";
-// pub const GRAPH: &str = "4zPHw1aFGf3nB7RCEvx1x2ojg5dVupANb3hrEuesJboY";
-
-pub const GRAPH_BIN: &[u8] = include_bytes!("graph.txt");
+pub const GRAPH: &str = "9cfBkPsoQ2NPHYPi7b69bcQG8FKfNc33k2UfRxiPFyd9";
 
 pub const PORT: u16 = 4445;
 
@@ -39,3 +36,4 @@ pub const DOMAIN: &str = "test.slin.ie";
 pub type C2StorageProvider = LinearStorageProvider<FileManager>;
 
 pub type C2ClientState = ClientState<C2PolicyStore, C2StorageProvider>;
+

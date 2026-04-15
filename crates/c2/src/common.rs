@@ -286,9 +286,11 @@ impl C2Client {
         &self,
         policy: VmPolicy<DefaultEngine>
     ) -> C2ClientState {
+        let pathstr = &self.config_dir.to_str().unwrap();
+        let path = aranya_libc::Path::new(&pathstr);
         C2ClientState::new(
             C2PolicyStore { policy },
-            C2StorageProvider::new(FileManager::new(&self.config_dir).unwrap())
+            C2StorageProvider::new(FileManager::new(path).unwrap())
         )
     }
 

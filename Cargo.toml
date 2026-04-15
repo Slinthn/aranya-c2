@@ -1,27 +1,31 @@
-[package]
-name = "AranyaC2"
-edition = "2024"
+[workspace]
+members = [
+    "crates/*"
+]
 
-[dependencies]
-aranya_runtime = { package = "aranya-runtime", path = "aranya-core/crates/aranya-runtime", features = ["libc"] }
-aranya_policy_ifgen_build = { package = "aranya-policy-ifgen-build", path = "aranya-core/crates/aranya-policy-ifgen-build" }
-aranya_crypto = { package = "aranya-crypto", path = "aranya-core/crates/aranya-crypto", features = ["alloc", "fs-keystore", "memstore", "afc", "clone-aead"] }
-aranya_policy_module = { package = "aranya-policy-module", path = "aranya-core/crates/aranya-policy-module" }
-aranya_policy_lang = { package = "aranya-policy-lang", path = "aranya-core/crates/aranya-policy-lang" }
-aranya_policy_compiler = { package = "aranya-policy-compiler", path = "aranya-core/crates/aranya-policy-compiler" }
-aranya_policy_vm = { package = "aranya-policy-vm", path = "aranya-core/crates/aranya-policy-vm" }
-aranya_envelope_ffi = { package = "aranya-envelope-ffi", path = "aranya-core/crates/aranya-envelope-ffi" }
-aranya_device_ffi = { package = "aranya-device-ffi", path = "aranya-core/crates/aranya-device-ffi" }
-aranya_crypto_ffi = { package = "aranya-crypto-ffi", path = "aranya-core/crates/aranya-crypto-ffi" }
-aranya_idam_ffi = { package = "aranya-idam-ffi", path = "aranya-core/crates/aranya-idam-ffi" }
-aranya_perspective_ffi = { package = "aranya-perspective-ffi", path = "aranya-core/crates/aranya-perspective-ffi" }
-aranya_model = { package = "aranya-model", path = "aranya-core/crates/aranya-model" }
-aranya_quic_syncer = { package = "aranya-quic-syncer", path = "aranya-core/crates/aranya-quic-syncer" }
-aranya_policy_text = { package = "aranya-policy-text", path = "aranya-core/crates/aranya-policy-text" }
-aranya_policy_ifgen = { package = "aranya-policy-ifgen", path = "aranya-core/crates/aranya-policy-ifgen" }
-aranya_fast_channels = { package = "aranya-fast-channels", path = "aranya-core/crates/aranya-fast-channels", features = ["alloc", "posix"] }
-aranya-afc-util = { package = "aranya-afc-util", path = "aranya-core/crates/aranya-afc-util", features = ["alloc"] }
-aranya-libc = { package = "aranya-libc", path = "aranya-core/crates/aranya-libc" }
+[workspace.package]
+edition = "2024"
+rust-version = "1.94.1"
+authors = ["Alex Ringhoffer"]
+license = "AGPL-3.0-only"
+repository = "https://github.com/slinthn/aranya-c2"
+
+[workspace.dependencies]
+aranya-runtime = {version = "0.22.0", features = ["libc"] }
+aranya-policy-ifgen-build = "0.15.0"
+aranya-crypto = { version = "0.14.0", features = ["alloc", "fs-keystore", "memstore", "afc", "clone-aead"] }
+aranya-policy-module = "0.20.0"
+aranya-policy-lang = "0.14.1"
+aranya-policy-compiler = "0.22.0"
+aranya-policy-vm = "0.21.0"
+aranya-envelope-ffi = "0.21.0"
+aranya-device-ffi = "0.21.0"
+aranya-crypto-ffi = "0.21.0" 
+aranya-idam-ffi = "0.21.0"
+aranya-perspective-ffi = "0.21.0"
+aranya-policy-text = "0.1.4"
+aranya-policy-ifgen = "0.22.0"
+aranya-libc = "0.4.0"
 
 rcgen = { version = "0.13", default-features = false, features = ["pem", "aws_lc_rs"] }
 tokio = { version = "1.49.0", features = ["sync", "rt-multi-thread"] }
@@ -48,15 +52,3 @@ rusqlite = { version = "0.39.0", features = ["bundled"] }
 base64 = "0.22.1"
 machine-uid = "0.5.4"
 hex = "0.4.3"
-
-[[bin]]
-name = "operator"
-path = "src/main_operator.rs"
-
-[[bin]]
-name = "infected"
-path = "src/main_infected.rs"
-
-[[bin]]
-name = "setup"
-path = "src/setup.rs"

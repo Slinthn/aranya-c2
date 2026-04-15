@@ -1,7 +1,4 @@
-mod common;
-mod config;
-mod policy;
-mod c2syncer;
+use c2::*;
 
 use std::{
     net::{
@@ -125,7 +122,7 @@ fn main() {
     let cs = aranya.init_aranya(policy);
 
     // let graph = GraphId::from_bytes(config::GRAPH_BIN.try_into().unwrap());
-    let graph = GraphId::from_str("FxoQd2k4TCugs8u38utki1PBkhspw9dVdwyTbWLzA8b6").unwrap();
+    let graph = GraphId::from_str("CG2Fp2M4XTs1SGmT6i3LW83LP2X14USRcmEz6S8rjgde").unwrap();
     aranya.set_graph(graph);
 
     let mut syncer = C2Syncer::new(cs, sink);
