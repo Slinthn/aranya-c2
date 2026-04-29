@@ -1,0 +1,1 @@
+{"bpf_skel":{"data_sections":[],"maps":[{"ident":"rodata","name":"detect_b.rodata"}],"obj_name":"detect_bpf","progs":[{"attach":"tp/syscalls/sys_enter_write","link":true,"name":"handle"}]},"eunomia_version":"0.3.4"}

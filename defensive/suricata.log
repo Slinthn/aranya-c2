@@ -1,0 +1,635 @@
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: cpu: CPUs/cores online: 20
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: suricata: Setting engine mode to IDS mode by default
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: exception-policy: master exception-policy set to: auto
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: suricata: Preparing unexpected signal handling
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: logopenfile: fast output device (regular) initialized: fast.log
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: logopenfile: stats output device (regular) initialized: stats.log
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[402639 - RX#01] 2026-04-15 16:31:52 Info: pcap: Starting file run for graph-sync.pcapng
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[402639 - RX#01] 2026-04-15 16:31:52 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Notice: suricata: Signal Received.  Stopping engine.
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: suricata: time elapsed 0.162s
+[402639 - RX#01] 2026-04-15 16:31:52 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[402638 - Suricata-Main] 2026-04-15 16:31:52 Info: counters: Alerts: 0
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Info: cpu: CPUs/cores online: 20
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Info: suricata: Setting engine mode to IDS mode by default
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Info: exception-policy: master exception-policy set to: auto
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Info: suricata: Preparing unexpected signal handling
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Info: logopenfile: fast output device (regular) initialized: fast.log
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Info: logopenfile: stats output device (regular) initialized: stats.log
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Info: detect: 1 rule files processed. 2 rules successfully loaded, 0 rules failed, 0 rules skipped
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[405000 - Suricata-Main] 2026-04-15 16:32:37 Info: detect: 2 signatures processed. 1 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[405001 - RX#01] 2026-04-15 16:32:38 Info: pcap: Starting file run for graph-sync.pcapng
+[405000 - Suricata-Main] 2026-04-15 16:32:38 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[405001 - RX#01] 2026-04-15 16:32:38 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[405000 - Suricata-Main] 2026-04-15 16:32:38 Notice: suricata: Signal Received.  Stopping engine.
+[405000 - Suricata-Main] 2026-04-15 16:32:38 Info: suricata: time elapsed 0.163s
+[405001 - RX#01] 2026-04-15 16:32:38 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[405000 - Suricata-Main] 2026-04-15 16:32:38 Info: counters: Alerts: 21
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Info: cpu: CPUs/cores online: 20
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Info: suricata: Setting engine mode to IDS mode by default
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Info: exception-policy: master exception-policy set to: auto
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Info: suricata: Preparing unexpected signal handling
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Info: logopenfile: fast output device (regular) initialized: fast.log
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Info: logopenfile: stats output device (regular) initialized: stats.log
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[410210 - Suricata-Main] 2026-04-15 16:35:08 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[410211 - RX#01] 2026-04-15 16:35:09 Info: pcap: Starting file run for graph-sync.pcapng
+[410210 - Suricata-Main] 2026-04-15 16:35:09 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[410211 - RX#01] 2026-04-15 16:35:09 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[410210 - Suricata-Main] 2026-04-15 16:35:09 Notice: suricata: Signal Received.  Stopping engine.
+[410210 - Suricata-Main] 2026-04-15 16:35:09 Info: suricata: time elapsed 0.167s
+[410211 - RX#01] 2026-04-15 16:35:09 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[410210 - Suricata-Main] 2026-04-15 16:35:09 Info: counters: Alerts: 0
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Info: cpu: CPUs/cores online: 20
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Info: suricata: Setting engine mode to IDS mode by default
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Info: exception-policy: master exception-policy set to: auto
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Info: suricata: Preparing unexpected signal handling
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Info: logopenfile: fast output device (regular) initialized: fast.log
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Info: logopenfile: stats output device (regular) initialized: stats.log
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[410516 - RX#01] 2026-04-15 16:35:14 Info: pcap: Starting file run for graph-sync.pcapng
+[410515 - Suricata-Main] 2026-04-15 16:35:14 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[410516 - RX#01] 2026-04-15 16:35:15 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[410515 - Suricata-Main] 2026-04-15 16:35:15 Notice: suricata: Signal Received.  Stopping engine.
+[410515 - Suricata-Main] 2026-04-15 16:35:15 Info: suricata: time elapsed 0.195s
+[410516 - RX#01] 2026-04-15 16:35:15 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[410515 - Suricata-Main] 2026-04-15 16:35:15 Info: counters: Alerts: 0
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: cpu: CPUs/cores online: 20
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: suricata: Setting engine mode to IDS mode by default
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: exception-policy: master exception-policy set to: auto
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: suricata: Preparing unexpected signal handling
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: logopenfile: fast output device (regular) initialized: fast.log
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: logopenfile: stats output device (regular) initialized: stats.log
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[417930 - RX#01] 2026-04-15 16:41:04 Info: pcap: Starting file run for graph-sync.pcapng
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[417930 - RX#01] 2026-04-15 16:41:04 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Notice: suricata: Signal Received.  Stopping engine.
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: suricata: time elapsed 0.149s
+[417930 - RX#01] 2026-04-15 16:41:04 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[417924 - Suricata-Main] 2026-04-15 16:41:04 Info: counters: Alerts: 0
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Info: cpu: CPUs/cores online: 20
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Info: suricata: Setting engine mode to IDS mode by default
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Info: exception-policy: master exception-policy set to: auto
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Info: suricata: Preparing unexpected signal handling
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Info: logopenfile: fast output device (regular) initialized: fast.log
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Info: logopenfile: stats output device (regular) initialized: stats.log
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[422185 - RX#01] 2026-04-15 16:44:58 Info: pcap: Starting file run for graph-sync.pcapng
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[422185 - RX#01] 2026-04-15 16:44:58 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[422179 - Suricata-Main] 2026-04-15 16:44:58 Notice: suricata: Signal Received.  Stopping engine.
+[422179 - Suricata-Main] 2026-04-15 16:44:59 Info: suricata: time elapsed 0.172s
+[422185 - RX#01] 2026-04-15 16:44:59 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[422179 - Suricata-Main] 2026-04-15 16:44:59 Info: counters: Alerts: 509
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Info: cpu: CPUs/cores online: 20
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Info: suricata: Setting engine mode to IDS mode by default
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Info: exception-policy: master exception-policy set to: auto
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Info: suricata: Preparing unexpected signal handling
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Info: logopenfile: fast output device (regular) initialized: fast.log
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Info: logopenfile: stats output device (regular) initialized: stats.log
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[425974 - RX#01] 2026-04-15 16:46:49 Info: pcap: Starting file run for graph-sync.pcapng
+[425973 - Suricata-Main] 2026-04-15 16:46:49 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[425974 - RX#01] 2026-04-15 16:46:49 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[425973 - Suricata-Main] 2026-04-15 16:46:50 Notice: suricata: Signal Received.  Stopping engine.
+[425973 - Suricata-Main] 2026-04-15 16:46:50 Info: suricata: time elapsed 0.160s
+[425974 - RX#01] 2026-04-15 16:46:50 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[425973 - Suricata-Main] 2026-04-15 16:46:50 Info: counters: Alerts: 0
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: cpu: CPUs/cores online: 20
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: suricata: Setting engine mode to IDS mode by default
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: exception-policy: master exception-policy set to: auto
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: suricata: Preparing unexpected signal handling
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: logopenfile: fast output device (regular) initialized: fast.log
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: logopenfile: stats output device (regular) initialized: stats.log
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: detect: 1 signatures processed. 0 are IP-only rules, 1 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[426910 - RX#01] 2026-04-15 16:49:05 Info: pcap: Starting file run for graph-sync.pcapng
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[426910 - RX#01] 2026-04-15 16:49:05 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Notice: suricata: Signal Received.  Stopping engine.
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: suricata: time elapsed 0.171s
+[426910 - RX#01] 2026-04-15 16:49:05 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[426909 - Suricata-Main] 2026-04-15 16:49:05 Info: counters: Alerts: 0
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: cpu: CPUs/cores online: 20
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: suricata: Setting engine mode to IDS mode by default
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: exception-policy: master exception-policy set to: auto
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: suricata: Preparing unexpected signal handling
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: logopenfile: fast output device (regular) initialized: fast.log
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: logopenfile: stats output device (regular) initialized: stats.log
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: detect: 1 signatures processed. 0 are IP-only rules, 1 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[428725 - RX#01] 2026-04-15 16:50:54 Info: pcap: Starting file run for graph-sync.pcapng
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[428725 - RX#01] 2026-04-15 16:50:54 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Notice: suricata: Signal Received.  Stopping engine.
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: suricata: time elapsed 0.170s
+[428725 - RX#01] 2026-04-15 16:50:54 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[428719 - Suricata-Main] 2026-04-15 16:50:54 Info: counters: Alerts: 2
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Info: cpu: CPUs/cores online: 20
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Info: suricata: Setting engine mode to IDS mode by default
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Info: exception-policy: master exception-policy set to: auto
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Info: suricata: Preparing unexpected signal handling
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Info: logopenfile: fast output device (regular) initialized: fast.log
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Info: logopenfile: stats output device (regular) initialized: stats.log
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Error: detect-parse: can't set rule app proto to failed: already set to quic
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Error: detect: error parsing signature "alert quic any any -> any any (msg: "QUIC"; tls.cert_subject; content:"localhost"; nocase; content:"|e9622a|"; sid:1;)" from file rules.yaml at line 1
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Warning: detect: 1 rule files specified, but no rules were loaded!
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Info: detect: 0 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[430039 - RX#01] 2026-04-15 16:51:33 Info: pcap: Starting file run for graph-sync.pcapng
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[430039 - RX#01] 2026-04-15 16:51:33 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[430034 - Suricata-Main] 2026-04-15 16:51:33 Notice: suricata: Signal Received.  Stopping engine.
+[430034 - Suricata-Main] 2026-04-15 16:51:34 Info: suricata: time elapsed 0.165s
+[430039 - RX#01] 2026-04-15 16:51:34 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[430034 - Suricata-Main] 2026-04-15 16:51:34 Info: counters: Alerts: 0
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Info: cpu: CPUs/cores online: 20
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Info: suricata: Setting engine mode to IDS mode by default
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Info: exception-policy: master exception-policy set to: auto
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Info: suricata: Preparing unexpected signal handling
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Info: logopenfile: fast output device (regular) initialized: fast.log
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Info: logopenfile: stats output device (regular) initialized: stats.log
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[431159 - RX#01] 2026-04-15 16:51:51 Info: pcap: Starting file run for graph-sync.pcapng
+[431154 - Suricata-Main] 2026-04-15 16:51:51 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[431159 - RX#01] 2026-04-15 16:51:52 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[431154 - Suricata-Main] 2026-04-15 16:51:52 Notice: suricata: Signal Received.  Stopping engine.
+[431154 - Suricata-Main] 2026-04-15 16:51:52 Info: suricata: time elapsed 0.167s
+[431159 - RX#01] 2026-04-15 16:51:52 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[431154 - Suricata-Main] 2026-04-15 16:51:52 Info: counters: Alerts: 0
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: cpu: CPUs/cores online: 20
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: suricata: Setting engine mode to IDS mode by default
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: exception-policy: master exception-policy set to: auto
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: suricata: Preparing unexpected signal handling
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: logopenfile: fast output device (regular) initialized: fast.log
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: logopenfile: stats output device (regular) initialized: stats.log
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[431549 - RX#01] 2026-04-15 16:51:57 Info: pcap: Starting file run for graph-sync.pcapng
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[431549 - RX#01] 2026-04-15 16:51:57 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Notice: suricata: Signal Received.  Stopping engine.
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: suricata: time elapsed 0.170s
+[431549 - RX#01] 2026-04-15 16:51:57 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[431542 - Suricata-Main] 2026-04-15 16:51:57 Info: counters: Alerts: 0
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Info: cpu: CPUs/cores online: 20
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Info: suricata: Setting engine mode to IDS mode by default
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Info: exception-policy: master exception-policy set to: auto
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Info: suricata: Preparing unexpected signal handling
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Info: logopenfile: fast output device (regular) initialized: fast.log
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Info: logopenfile: stats output device (regular) initialized: stats.log
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Error: detect-nocase: nocase needs preceding content option
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Error: detect: error parsing signature "alert tls any any -> any any (msg: "QUIC"; tls.cert_subject; nocase; sid:1;)" from file rules.yaml at line 1
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Warning: detect: 1 rule files specified, but no rules were loaded!
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Info: detect: 0 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[432054 - RX#01] 2026-04-15 16:52:05 Info: pcap: Starting file run for graph-sync.pcapng
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[432054 - RX#01] 2026-04-15 16:52:05 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Notice: suricata: Signal Received.  Stopping engine.
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Info: suricata: time elapsed 0.159s
+[432054 - RX#01] 2026-04-15 16:52:05 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[432047 - Suricata-Main] 2026-04-15 16:52:05 Info: counters: Alerts: 0
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: cpu: CPUs/cores online: 20
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: suricata: Setting engine mode to IDS mode by default
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: exception-policy: master exception-policy set to: auto
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: suricata: Preparing unexpected signal handling
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: logopenfile: fast output device (regular) initialized: fast.log
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: logopenfile: stats output device (regular) initialized: stats.log
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[432467 - RX#01] 2026-04-15 16:52:11 Info: pcap: Starting file run for graph-sync.pcapng
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[432467 - RX#01] 2026-04-15 16:52:11 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Notice: suricata: Signal Received.  Stopping engine.
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: suricata: time elapsed 0.165s
+[432467 - RX#01] 2026-04-15 16:52:11 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[432460 - Suricata-Main] 2026-04-15 16:52:11 Info: counters: Alerts: 0
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Info: cpu: CPUs/cores online: 20
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Info: suricata: Setting engine mode to IDS mode by default
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Info: exception-policy: master exception-policy set to: auto
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Info: suricata: Preparing unexpected signal handling
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Info: logopenfile: fast output device (regular) initialized: fast.log
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Info: logopenfile: stats output device (regular) initialized: stats.log
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Error: detect-parse: rule 1 setup buffer tls.cert_subject but didn't add matches to it
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Error: detect: error parsing signature "alert tls any any -> any any (msg: "QUIC"; tls.cert_subject; sid:1;)" from file rules.yaml at line 1
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Warning: detect: 1 rule files specified, but no rules were loaded!
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Info: detect: 0 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[433127 - RX#01] 2026-04-15 16:52:21 Info: pcap: Starting file run for graph-sync.pcapng
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[433127 - RX#01] 2026-04-15 16:52:21 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Notice: suricata: Signal Received.  Stopping engine.
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Info: suricata: time elapsed 0.168s
+[433127 - RX#01] 2026-04-15 16:52:21 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[433120 - Suricata-Main] 2026-04-15 16:52:21 Info: counters: Alerts: 0
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Info: cpu: CPUs/cores online: 20
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Info: suricata: Setting engine mode to IDS mode by default
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Info: exception-policy: master exception-policy set to: auto
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Info: suricata: Preparing unexpected signal handling
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Info: logopenfile: fast output device (regular) initialized: fast.log
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Info: logopenfile: stats output device (regular) initialized: stats.log
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Error: detect-parse: invalid formatting or malformed option to tls.subject keyword: 'tls.subject'
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Error: detect: error parsing signature "alert tls any any -> any any (msg: "QUIC"; tls.subject; content:"localhost"; nocase; sid:1;)" from file rules.yaml at line 1
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Warning: detect: 1 rule files specified, but no rules were loaded!
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Info: detect: 0 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[433635 - RX#01] 2026-04-15 16:52:34 Info: pcap: Starting file run for graph-sync.pcapng
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[433635 - RX#01] 2026-04-15 16:52:34 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Notice: suricata: Signal Received.  Stopping engine.
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Info: suricata: time elapsed 0.174s
+[433635 - RX#01] 2026-04-15 16:52:34 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[433628 - Suricata-Main] 2026-04-15 16:52:34 Info: counters: Alerts: 0
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Info: cpu: CPUs/cores online: 20
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Info: suricata: Setting engine mode to IDS mode by default
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Info: exception-policy: master exception-policy set to: auto
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Info: suricata: Preparing unexpected signal handling
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Info: logopenfile: fast output device (regular) initialized: fast.log
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Info: logopenfile: stats output device (regular) initialized: stats.log
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[433986 - Suricata-Main] 2026-04-15 16:52:41 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[433991 - RX#01] 2026-04-15 16:52:42 Info: pcap: Starting file run for graph-sync.pcapng
+[433986 - Suricata-Main] 2026-04-15 16:52:42 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[433991 - RX#01] 2026-04-15 16:52:42 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[433986 - Suricata-Main] 2026-04-15 16:52:42 Notice: suricata: Signal Received.  Stopping engine.
+[433986 - Suricata-Main] 2026-04-15 16:52:42 Info: suricata: time elapsed 0.158s
+[433991 - RX#01] 2026-04-15 16:52:42 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[433986 - Suricata-Main] 2026-04-15 16:52:42 Info: counters: Alerts: 0
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: cpu: CPUs/cores online: 20
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: suricata: Setting engine mode to IDS mode by default
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: exception-policy: master exception-policy set to: auto
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: suricata: Preparing unexpected signal handling
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: logopenfile: fast output device (regular) initialized: fast.log
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: logopenfile: stats output device (regular) initialized: stats.log
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[434518 - RX#01] 2026-04-15 16:53:44 Info: pcap: Starting file run for graph-sync.pcapng
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[434518 - RX#01] 2026-04-15 16:53:44 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Notice: suricata: Signal Received.  Stopping engine.
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: suricata: time elapsed 0.166s
+[434518 - RX#01] 2026-04-15 16:53:44 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[434512 - Suricata-Main] 2026-04-15 16:53:44 Info: counters: Alerts: 0
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: cpu: CPUs/cores online: 20
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: suricata: Setting engine mode to IDS mode by default
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: exception-policy: master exception-policy set to: auto
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: suricata: Preparing unexpected signal handling
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: logopenfile: fast output device (regular) initialized: fast.log
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: logopenfile: stats output device (regular) initialized: stats.log
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[437426 - RX#01] 2026-04-15 16:54:36 Info: pcap: Starting file run for graph-sync.pcapng
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[437426 - RX#01] 2026-04-15 16:54:36 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Notice: suricata: Signal Received.  Stopping engine.
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: suricata: time elapsed 0.171s
+[437426 - RX#01] 2026-04-15 16:54:36 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[437421 - Suricata-Main] 2026-04-15 16:54:36 Info: counters: Alerts: 0
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: cpu: CPUs/cores online: 20
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: suricata: Setting engine mode to IDS mode by default
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: exception-policy: master exception-policy set to: auto
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: suricata: Preparing unexpected signal handling
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: logopenfile: fast output device (regular) initialized: fast.log
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: logopenfile: stats output device (regular) initialized: stats.log
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[439589 - RX#01] 2026-04-15 16:55:08 Info: pcap: Starting file run for graph-sync.pcapng
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[439589 - RX#01] 2026-04-15 16:55:08 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Notice: suricata: Signal Received.  Stopping engine.
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: suricata: time elapsed 0.172s
+[439589 - RX#01] 2026-04-15 16:55:08 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[439583 - Suricata-Main] 2026-04-15 16:55:08 Info: counters: Alerts: 705
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: cpu: CPUs/cores online: 20
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: suricata: Setting engine mode to IDS mode by default
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: exception-policy: master exception-policy set to: auto
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: suricata: Preparing unexpected signal handling
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: logopenfile: fast output device (regular) initialized: fast.log
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: logopenfile: stats output device (regular) initialized: stats.log
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[454401 - RX#01] 2026-04-15 17:18:21 Info: pcap: Starting file run for graph-sync.pcapng
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[454401 - RX#01] 2026-04-15 17:18:21 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Notice: suricata: Signal Received.  Stopping engine.
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: suricata: time elapsed 0.158s
+[454401 - RX#01] 2026-04-15 17:18:21 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[454397 - Suricata-Main] 2026-04-15 17:18:21 Info: counters: Alerts: 705
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Info: cpu: CPUs/cores online: 20
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Info: suricata: Setting engine mode to IDS mode by default
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Info: exception-policy: master exception-policy set to: auto
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Info: suricata: Preparing unexpected signal handling
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Info: logopenfile: fast output device (regular) initialized: fast.log
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Info: logopenfile: stats output device (regular) initialized: stats.log
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[8267 - Suricata-Main] 2026-04-16 07:48:32 Info: detect: 1 signatures processed. 0 are IP-only rules, 1 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[8268 - RX#01] 2026-04-16 07:48:33 Info: pcap: Starting file run for graph-sync.pcapng
+[8267 - Suricata-Main] 2026-04-16 07:48:33 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[8268 - RX#01] 2026-04-16 07:48:33 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[8267 - Suricata-Main] 2026-04-16 07:48:33 Notice: suricata: Signal Received.  Stopping engine.
+[8267 - Suricata-Main] 2026-04-16 07:48:33 Info: suricata: time elapsed 0.153s
+[8268 - RX#01] 2026-04-16 07:48:33 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[8267 - Suricata-Main] 2026-04-16 07:48:33 Info: counters: Alerts: 0
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: cpu: CPUs/cores online: 20
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: suricata: Setting engine mode to IDS mode by default
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: exception-policy: master exception-policy set to: auto
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: suricata: Preparing unexpected signal handling
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: logopenfile: fast output device (regular) initialized: fast.log
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: logopenfile: stats output device (regular) initialized: stats.log
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: detect: 1 signatures processed. 0 are IP-only rules, 1 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[8338 - RX#01] 2026-04-16 07:48:38 Info: pcap: Starting file run for graph-sync.pcapng
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[8338 - RX#01] 2026-04-16 07:48:38 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Notice: suricata: Signal Received.  Stopping engine.
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: suricata: time elapsed 0.151s
+[8338 - RX#01] 2026-04-16 07:48:38 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[8337 - Suricata-Main] 2026-04-16 07:48:38 Info: counters: Alerts: 0
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: cpu: CPUs/cores online: 20
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: suricata: Setting engine mode to IDS mode by default
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: exception-policy: master exception-policy set to: auto
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: suricata: Preparing unexpected signal handling
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: logopenfile: fast output device (regular) initialized: fast.log
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: logopenfile: stats output device (regular) initialized: stats.log
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[8388 - RX#01] 2026-04-16 07:48:45 Info: pcap: Starting file run for graph-sync.pcapng
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[8388 - RX#01] 2026-04-16 07:48:45 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Notice: suricata: Signal Received.  Stopping engine.
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: suricata: time elapsed 0.157s
+[8388 - RX#01] 2026-04-16 07:48:45 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[8387 - Suricata-Main] 2026-04-16 07:48:45 Info: counters: Alerts: 705
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: cpu: CPUs/cores online: 20
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: suricata: Setting engine mode to IDS mode by default
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: exception-policy: master exception-policy set to: auto
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: suricata: Preparing unexpected signal handling
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: logopenfile: fast output device (regular) initialized: fast.log
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: logopenfile: stats output device (regular) initialized: stats.log
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: detect: 1 signatures processed. 0 are IP-only rules, 1 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[8444 - RX#01] 2026-04-16 07:48:52 Info: pcap: Starting file run for graph-sync.pcapng
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[8444 - RX#01] 2026-04-16 07:48:52 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Notice: suricata: Signal Received.  Stopping engine.
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: suricata: time elapsed 0.153s
+[8444 - RX#01] 2026-04-16 07:48:52 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[8440 - Suricata-Main] 2026-04-16 07:48:52 Info: counters: Alerts: 0
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Info: cpu: CPUs/cores online: 20
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Info: suricata: Setting engine mode to IDS mode by default
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Info: exception-policy: master exception-policy set to: auto
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Info: suricata: Preparing unexpected signal handling
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Info: logopenfile: fast output device (regular) initialized: fast.log
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Info: logopenfile: stats output device (regular) initialized: stats.log
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Error: detect-content: Invalid hex code in content - |localhost|, hex l. Invalidating signature.
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Error: detect: error parsing signature "alert quic any any -> any any (msg: "LOLLLLLLLL"; content: "|localhost|"; sid:1;)" from file rules.yaml at line 3
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Warning: detect: 1 rule files specified, but no rules were loaded!
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Info: detect: 0 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[8539 - RX#01] 2026-04-16 07:49:32 Info: pcap: Starting file run for graph-sync.pcapng
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[8539 - RX#01] 2026-04-16 07:49:32 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Notice: suricata: Signal Received.  Stopping engine.
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Info: suricata: time elapsed 0.149s
+[8539 - RX#01] 2026-04-16 07:49:32 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[8538 - Suricata-Main] 2026-04-16 07:49:32 Info: counters: Alerts: 0
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: cpu: CPUs/cores online: 20
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: suricata: Setting engine mode to IDS mode by default
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: exception-policy: master exception-policy set to: auto
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: suricata: Preparing unexpected signal handling
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: logopenfile: fast output device (regular) initialized: fast.log
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: logopenfile: stats output device (regular) initialized: stats.log
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: detect: 1 rule files processed. 1 rules successfully loaded, 0 rules failed, 0 rules skipped
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: detect: 1 signatures processed. 0 are IP-only rules, 1 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[8579 - RX#01] 2026-04-16 07:49:36 Info: pcap: Starting file run for graph-sync.pcapng
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[8579 - RX#01] 2026-04-16 07:49:36 Info: pcap: pcap file graph-sync.pcapng end of file reached (pcap err code 0)
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Notice: suricata: Signal Received.  Stopping engine.
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: suricata: time elapsed 0.134s
+[8579 - RX#01] 2026-04-16 07:49:36 Notice: pcap: read 1 file, 706 packets, 4403673 bytes
+[8578 - Suricata-Main] 2026-04-16 07:49:36 Info: counters: Alerts: 0
+[14365 - Suricata-Main] 2026-04-16 08:07:41 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[14365 - Suricata-Main] 2026-04-16 08:07:41 Info: cpu: CPUs/cores online: 20
+[14365 - Suricata-Main] 2026-04-16 08:07:41 Info: suricata: Setting engine mode to IDS mode by default
+[14365 - Suricata-Main] 2026-04-16 08:07:41 Info: exception-policy: master exception-policy set to: auto
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Info: suricata: Preparing unexpected signal handling
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Info: logopenfile: fast output device (regular) initialized: fast.log
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Info: logopenfile: stats output device (regular) initialized: stats.log
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Error: detect-parse: Signature missing required value "sid".
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Error: detect: error parsing signature "alert dns any any -> any any (" from file rules.yaml at line 4
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Error: detect-parse: no rule options.
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Error: detect: error parsing signature ")" from file rules.yaml at line 9
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Info: detect: 1 rule files processed. 1 rules successfully loaded, 2 rules failed, 0 rules skipped
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[14366 - RX#01] 2026-04-16 08:07:42 Info: pcap: Starting file run for graph-sync2.pcapng
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[14366 - RX#01] 2026-04-16 08:07:42 Info: checksum: Less than 1/10th of packets have an invalid checksum, assuming checksum offloading is NOT used (77/1000)
+[14366 - RX#01] 2026-04-16 08:07:42 Info: pcap: pcap file graph-sync2.pcapng end of file reached (pcap err code 0)
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Notice: suricata: Signal Received.  Stopping engine.
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Info: suricata: time elapsed 0.157s
+[14366 - RX#01] 2026-04-16 08:07:42 Notice: pcap: read 1 file, 2395 packets, 5190823 bytes
+[14365 - Suricata-Main] 2026-04-16 08:07:42 Info: counters: Alerts: 1596
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: cpu: CPUs/cores online: 20
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: suricata: Setting engine mode to IDS mode by default
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: exception-policy: master exception-policy set to: auto
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: suricata: Preparing unexpected signal handling
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: logopenfile: fast output device (regular) initialized: fast.log
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: logopenfile: stats output device (regular) initialized: stats.log
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Error: detect-parse: Signature missing required value "sid".
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Error: detect: error parsing signature "alert dns any any -> any any (" from file rules.yaml at line 4
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Error: detect-parse: no rule options.
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Error: detect: error parsing signature ")" from file rules.yaml at line 10
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: detect: 1 rule files processed. 1 rules successfully loaded, 2 rules failed, 0 rules skipped
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[14433 - RX#01] 2026-04-16 08:08:03 Info: pcap: Starting file run for graph-sync2.pcapng
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[14433 - RX#01] 2026-04-16 08:08:03 Info: checksum: Less than 1/10th of packets have an invalid checksum, assuming checksum offloading is NOT used (81/1000)
+[14433 - RX#01] 2026-04-16 08:08:03 Info: pcap: pcap file graph-sync2.pcapng end of file reached (pcap err code 0)
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Notice: suricata: Signal Received.  Stopping engine.
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: suricata: time elapsed 0.156s
+[14433 - RX#01] 2026-04-16 08:08:03 Notice: pcap: read 1 file, 2395 packets, 5190823 bytes
+[14432 - Suricata-Main] 2026-04-16 08:08:03 Info: counters: Alerts: 1596
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: cpu: CPUs/cores online: 20
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: suricata: Setting engine mode to IDS mode by default
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: exception-policy: master exception-policy set to: auto
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: suricata: Preparing unexpected signal handling
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: logopenfile: fast output device (regular) initialized: fast.log
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: logopenfile: stats output device (regular) initialized: stats.log
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Error: detect-parse: Signature missing required value "sid".
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Error: detect: error parsing signature "alert dns any any -> any any (" from file rules.yaml at line 4
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Error: detect-parse: no rule options.
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Error: detect: error parsing signature ")" from file rules.yaml at line 9
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: detect: 1 rule files processed. 1 rules successfully loaded, 2 rules failed, 0 rules skipped
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: detect: 1 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 1 inspect application layer, 0 are decoder event only
+[14478 - RX#01] 2026-04-16 08:08:06 Info: pcap: Starting file run for graph-sync2.pcapng
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[14478 - RX#01] 2026-04-16 08:08:06 Info: checksum: Less than 1/10th of packets have an invalid checksum, assuming checksum offloading is NOT used (84/1000)
+[14478 - RX#01] 2026-04-16 08:08:06 Info: pcap: pcap file graph-sync2.pcapng end of file reached (pcap err code 0)
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Notice: suricata: Signal Received.  Stopping engine.
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: suricata: time elapsed 0.155s
+[14478 - RX#01] 2026-04-16 08:08:06 Notice: pcap: read 1 file, 2395 packets, 5190823 bytes
+[14477 - Suricata-Main] 2026-04-16 08:08:06 Info: counters: Alerts: 1596
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: cpu: CPUs/cores online: 20
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: suricata: Setting engine mode to IDS mode by default
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: exception-policy: master exception-policy set to: auto
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: suricata: Preparing unexpected signal handling
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: logopenfile: fast output device (regular) initialized: fast.log
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: logopenfile: stats output device (regular) initialized: stats.log
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: detect: 1 rule files processed. 2 rules successfully loaded, 0 rules failed, 0 rules skipped
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: detect: 2 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 2 inspect application layer, 0 are decoder event only
+[14541 - RX#01] 2026-04-16 08:08:19 Info: pcap: Starting file run for graph-sync2.pcapng
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[14541 - RX#01] 2026-04-16 08:08:19 Info: checksum: Less than 1/10th of packets have an invalid checksum, assuming checksum offloading is NOT used (81/1000)
+[14541 - RX#01] 2026-04-16 08:08:19 Info: pcap: pcap file graph-sync2.pcapng end of file reached (pcap err code 0)
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Notice: suricata: Signal Received.  Stopping engine.
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: suricata: time elapsed 0.160s
+[14541 - RX#01] 2026-04-16 08:08:19 Notice: pcap: read 1 file, 2395 packets, 5190823 bytes
+[14540 - Suricata-Main] 2026-04-16 08:08:19 Info: counters: Alerts: 1636
+[14589 - Suricata-Main] 2026-04-16 08:08:23 Notice: suricata: This is Suricata version 8.0.4 RELEASE running in USER mode
+[14589 - Suricata-Main] 2026-04-16 08:08:23 Info: cpu: CPUs/cores online: 20
+[14589 - Suricata-Main] 2026-04-16 08:08:23 Info: suricata: Setting engine mode to IDS mode by default
+[14589 - Suricata-Main] 2026-04-16 08:08:23 Info: exception-policy: master exception-policy set to: auto
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Info: suricata: Preparing unexpected signal handling
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Info: logopenfile: fast output device (regular) initialized: fast.log
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Warning: runmodes: eve module 'ikev2' has been replaced by 'ike'
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Info: logopenfile: stats output device (regular) initialized: stats.log
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Info: detect: 1 rule files processed. 2 rules successfully loaded, 0 rules failed, 0 rules skipped
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Info: detect: 2 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 2 inspect application layer, 0 are decoder event only
+[14590 - RX#01] 2026-04-16 08:08:24 Info: pcap: Starting file run for graph-sync2.pcapng
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Notice: threads: Threads created -> RX: 1 W: 20 FM: 1 FR: 1   Engine started.
+[14590 - RX#01] 2026-04-16 08:08:24 Info: checksum: Less than 1/10th of packets have an invalid checksum, assuming checksum offloading is NOT used (77/1000)
+[14590 - RX#01] 2026-04-16 08:08:24 Info: pcap: pcap file graph-sync2.pcapng end of file reached (pcap err code 0)
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Notice: suricata: Signal Received.  Stopping engine.
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Info: suricata: time elapsed 0.155s
+[14590 - RX#01] 2026-04-16 08:08:24 Notice: pcap: read 1 file, 2395 packets, 5190823 bytes
+[14589 - Suricata-Main] 2026-04-16 08:08:24 Info: counters: Alerts: 1636

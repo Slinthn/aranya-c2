@@ -1,0 +1,3 @@
+alert quic any 1024:65535 -> any 1024:65535 (msg: "QUIC detected on non-standard, non-well-known port"; sid:1;)
+# alert quic any any -> any any (msg: "LOLLLLLLLL"; content: "localhost"; sid:1;)
+alert dns any any -> any any (msg: "C2 callback DNS query"; dns.query; pcre: "/^[a-z0-9]{32}\..+/"; sid: 2;)

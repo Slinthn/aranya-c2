@@ -1,0 +1,3 @@
+Must enable non-standard port in suricata app-layer.protocols.quic
+
+User's compilation directory is within the Rust-based exes

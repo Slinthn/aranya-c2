@@ -1,3 +1,7 @@
 aranya-core/
 target/
 .vscode/
+*.pcapng
+*.o
+.venv/
+defensive/malware/

@@ -4,45 +4,25 @@ edition = "2024"
 
 [dependencies]
 aranya-runtime = { workspace = true }
-aranya-policy-ifgen-build = { workspace = true }
 aranya-crypto = { workspace = true }
-aranya-policy-module = { workspace = true }
-aranya-policy-lang = { workspace = true }
-aranya-policy-compiler = { workspace = true }
-aranya-policy-vm = { workspace = true }
-aranya-envelope-ffi = { workspace = true }
-aranya-device-ffi = { workspace = true }
-aranya-crypto-ffi = { workspace = true }
-aranya-idam-ffi = { workspace = true }
-aranya-perspective-ffi = { workspace = true }
-aranya-policy-text ={ workspace = true }
 aranya-policy-ifgen = { workspace = true }
-aranya-libc = { workspace = true }
-
-rcgen = { workspace = true }
 tokio = { workspace = true }
-s2n-quic = { workspace = true }
-serde = { workspace = true }
-tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 dns-lookup = { workspace = true }
-chrono = { workspace = true }
 rand = { workspace = true }
-bytes = { workspace = true }
 postcard = { workspace = true }
-heapless = { workspace = true }
-rustix = { workspace = true }
-clap = { workspace = true }
-serde_yaml = { workspace = true }
 rsa = { workspace = true }
 aes = { workspace = true }
 aes-gcm = { workspace = true }
-ratatui = { workspace = true }
-dirs = { workspace = true }
-tui-input = { workspace = true }
-rusqlite = { workspace = true }
-base64 = { workspace = true }
 machine-uid = { workspace = true }
 hex = { workspace = true }
 
 c2 = { path = "../c2" }
+
+[profile.release]
+strip = true
+debug = false
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = "z"  # or "s"

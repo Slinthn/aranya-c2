@@ -1,0 +1,44 @@
+# No QUIC checks
+
+
+427149 /home/slin/.cargo/bin/sh
+427149 /home/slin/.cargo/bin/sh
+427149 /usr/local/sbin/sh
+427149 /usr/local/bin/sh
+427149 /usr/bin/sh
+427149 /usr/bin/touch
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime
+498239 /usr/bin/xdg-mime

@@ -319,8 +319,11 @@ impl RatatuiApp {
         };
 
         let callback = match &self.lastcallback {
-            Some(v) => v.to_string(),
-            None => "UNSET".to_string(),
+            Some(v) => Span::styled(v.to_string(), Style::default().fg(Color::White)),
+            None => Span::styled(
+                "WARNING: UNSET".to_string(),
+                Style::default().fg(Color::White).bg(Color::Red),
+            ),
         };
 
         // General Information
@@ -345,14 +348,14 @@ impl RatatuiApp {
                     "Current C2 Callback: ",
                     Style::default().fg(Color::DarkGray),
                 ),
-                Span::styled(callback, Style::default().fg(Color::White)),
+                callback,
             ]),
             Line::from(vec![
+                Span::styled("Today's C2 Domain: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    "Today's C2 Domain: ",
-                    Style::default().fg(Color::DarkGray),
+                    dga::generate_domain_now(config::DOMAIN),
+                    Style::default().fg(Color::White),
                 ),
-                Span::styled(dga::generate_domain_now(config::DOMAIN), Style::default().fg(Color::White)),
             ]),
         ])
         .block(
@@ -525,12 +528,18 @@ impl RatatuiApp {
                         self.cache.current_config_dir = Some(dir.to_string());
                         self.cache.save_cache();
                         self.aranya = C2Client::new(dir.into());
-                        self.aranya.initialise_config(&mut self.sink);
+                        let (cs, _keys) = self.aranya.initialise_config(&mut self.sink);
+
+                        self.sink = OperatorSink;
+                        self.clientstate = cs;
 
                         self.tx.send(UIEvent::CallbackUpdated(None));
                         self.tx.send(UIEvent::PubKeyUpdated(
                             self.aranya.load_rsa_key().to_public_key(),
                         ));
+                        self.tx.send(UIEvent::SqliteUpdated(SqliteUpdateData {
+                            lines: Vec::new(),
+                        }));
                     }
                     // NOTE: No new graph, as config dir change will automatically create one
                     // "newgraph" => {
@@ -615,7 +624,7 @@ impl RatatuiApp {
                         self.submit();
                     }
                     KeyCode::Char('c') if evt.modifiers == KeyModifiers::CONTROL => {
-                        break Ok(());
+                        std::process::exit(0);
                     }
                     _ => {
                         self.input.handle_event(&Event::Key(evt));

