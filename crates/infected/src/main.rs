@@ -122,7 +122,7 @@ fn main() {
     let cs = aranya.init_aranya(policy);
 
     // let graph = GraphId::from_bytes(config::GRAPH_BIN.try_into().unwrap());
-    let graph = GraphId::from_str("2JfxVCCwjDRhqr1wL2iSK4gasVZW5xHuVAEU4ZZcZFVr").unwrap();
+    let graph = GraphId::from_str("DYQS695xyUrTNVjqmpbdTjsPPvdMHoFX3vjoggCECFbe").unwrap();
     aranya.set_graph(graph);
 
     let mut syncer = C2Syncer::new(cs, sink);

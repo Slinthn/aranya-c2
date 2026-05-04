@@ -14,6 +14,10 @@ int event_handler(void *ctx, void *data, size_t size) {
     return 0;
 }
 
+void xdp_event_handler(void *ctx, int cpu, void *data, unsigned int size) {
+    event_handler(ctx, data, size);
+}
+
 struct ring_buffer *load_sus_execution() {
     struct suspicious_execution_bpf *skel;
 
@@ -31,29 +35,17 @@ struct ring_buffer *load_sus_execution() {
     return buf;
 }
 
-struct ring_buffer *load_sus_fanning() {
-    struct suspicious_fanning_bpf *skel;
-
-    skel = suspicious_fanning_bpf__open();
-    suspicious_fanning_bpf__load(skel);
-    suspicious_fanning_bpf__attach(skel);
-
-    struct ring_buffer *buf = ring_buffer__new(
-        bpf_map__fd(skel->maps.events),
-        event_handler,
-        0,
-        0
-    );
-
-    return buf;
-}
-
 int main() {
     struct ring_buffer *exec_buf = load_sus_execution();
-    struct ring_buffer *fanning_buf = load_sus_fanning();
+
+    struct bpf_object *obj = bpf_object__open_file("suspicious_fanning.bpf.o", 0);
+    bpf_object__load(obj);
+
+    int map_fd = bpf_object__find_map_fd_by_name(obj, "events");
+    struct perf_buffer *pb = perf_buffer__new(map_fd, 8, xdp_event_handler, 0, 0, 0);
 
     while (1) {
         ring_buffer__poll(exec_buf, 1000);
-        ring_buffer__poll(fanning_buf, 1000);
+        perf_buffer__poll(pb, 100);
     }
 }

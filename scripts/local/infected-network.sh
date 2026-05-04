@@ -10,7 +10,7 @@ trap "kill_everything" SIGTERM SIGINT EXIT
 cargo build --bin infected
 
 # Run n infected nodes
-for i in {1..1}; do
+for i in {1..20}; do
     oct4=$(( i % 256 ))
     oct3=$(( (i / 256) + 1 ))
     ./target/debug/infected 127.0.$oct3.$oct4:4445 &
