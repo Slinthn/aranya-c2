@@ -1,0 +1,8 @@
+cd ~/Desktop/fyp/
+
+./scripts/local/operator.sh
+./scripts/local/infected-network.sh
+
+set callback 127.0.0.1:4447
+addpeer 127.0.0.42:4444
+command echo hi

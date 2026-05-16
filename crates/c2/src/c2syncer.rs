@@ -81,7 +81,7 @@ async fn handle_request<S: Sink<VmEffect>>(
         // println!("The stream is here :)");
         let addr = match s.connection().remote_addr() {
             Ok(mut addr) => {
-                addr.set_port(config::PORT);
+                addr.set_port(addr.port() + 1);
                 
                 // Add this connection to the connections list
                 let mut syncer = syncerm.lock().await;
@@ -108,7 +108,7 @@ async fn handle_request<S: Sink<VmEffect>>(
         println!("{}", req.len());
 
         println!("I got it");
-        let (peers, mut remaining) = match postcard::take_from_bytes::<Vec<SocketAddr>>(&req) {
+        let (peers, remaining) = match postcard::take_from_bytes::<Vec<SocketAddr>>(&req) {
             Ok((peers, remaining)) => (peers, remaining),
             Err(_) => {
                 println!("Error parsing peers");
@@ -205,8 +205,7 @@ async fn handle_request<S: Sink<VmEffect>>(
                         };
                         
                         let mut syncer = syncerm.lock().await;
-                        for mut syncaddr in syncaddrs {
-                            syncaddr.set_port(config::PORT);
+                        for syncaddr in syncaddrs {
                             c2push_sync(
                                 syncaddr,
                                 Arc::clone(&quic),
@@ -299,6 +298,15 @@ pub async fn c2sync<S: Sink<VmEffect>>(
                     return;
                 }
             };
+
+            {
+                let mut syncer = syncerm.lock().await;
+                for peer in peers {
+                    if !syncer.connections.contains(&peer) {
+                        syncer.connections.push(peer);
+                    }
+                }
+            }
 
             if let Ok(Some(recvdata)) = requester.receive(&remaining) {
                 let mut syncer = syncerm.lock().await;
