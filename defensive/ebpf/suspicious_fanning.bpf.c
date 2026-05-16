@@ -19,7 +19,7 @@ struct ip_port {
     u16 port;
 };
 
-#define MAX_COMM_HISTORY 10
+#define MAX_COMM_HISTORY 5
 
 struct communication {
     struct ip_port outbound[MAX_COMM_HISTORY];
@@ -113,6 +113,9 @@ int xdp_pass(struct xdp_md *ctx) {
     if (iph + 1 > data_end)
         return XDP_ABORTED;
 
+    // if (iph->protocol != IPPROTO_UDP)
+    //     return XDP_PASS;
+
     nh_off = sizeof(*iph);
     struct udphdr *udph = (void *)(long)iph + nh_off;
     if (udph + 1 > data_end)
@@ -127,6 +130,10 @@ int xdp_pass(struct xdp_md *ctx) {
 
     // Identify QUIC traffic through the Fixed bit
     if (!(payload[0] & 0x40))
+        return XDP_PASS;
+
+    // Minimum size requirement
+    if (datalen < 1000)
         return XDP_PASS;
 
     // Drop any packets with a multiple of 1200
@@ -147,7 +154,11 @@ int xdp_pass(struct xdp_md *ctx) {
 
     // Rule check
     if (check_array_full(src) || check_array_full(dst)) {
-        struct event evt = {};
+        struct event_fanning evt = {};
+        evt.srcip = iph->saddr;
+        evt.dstip = iph->daddr;
+        evt.srcport = udph->source;
+        evt.dstport = udph->dest;
         bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &evt, sizeof(evt));
         return XDP_DROP;
     }
