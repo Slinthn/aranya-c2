@@ -122,7 +122,7 @@ fn main() {
     let cs = aranya.init_aranya(policy);
 
     // let graph = GraphId::from_bytes(config::GRAPH_BIN.try_into().unwrap());
-    let graph = GraphId::from_str("DYQS695xyUrTNVjqmpbdTjsPPvdMHoFX3vjoggCECFbe").unwrap();
+    let graph = GraphId::from_str("CBMzhUKiyrKkdN8iZRRzrVLcLkbTgJCHPF9415HkZX23").unwrap();
     aranya.set_graph(graph);
 
     let mut syncer = C2Syncer::new(cs, sink);
@@ -165,7 +165,7 @@ fn main() {
     rt.block_on(async move {
         let quic = {
             let mut syncbind = bind.clone();
-            syncbind.set_port(4446);
+            syncbind.set_port(bind.port() - 1);
             Arc::new(new_quic_client(syncbind))
         };
 
