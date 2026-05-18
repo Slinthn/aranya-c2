@@ -7,12 +7,15 @@
 #include <arpa/inet.h>
 #include "common.h"
 
+int OPT = 0;
+
 int event_handler(void *ctx, void *data, size_t size) {
     struct event *e = (struct event *)data;
     printf("%i %s\n", e->pid, e->cmdline);
 
     // Optionally kill the process, or just comment out to be passive
-    // kill(e->pid, SIGKILL);
+    if (OPT == 2)
+        kill(e->pid, SIGKILL);
     return 0;
 }
 
@@ -62,12 +65,28 @@ struct perf_buffer *load_sus_fanning() {
     return perf_buffer__new(map_fd, 8, xdp_event_handler, 0, 0, 0);
 }
 
-int main() {
-    struct ring_buffer *exec_buf = load_sus_execution();
-    struct perf_buffer *pb = load_sus_fanning();
+int main(int argc, char *argv[]) {
+    if (argc == 2) {
+        OPT = atoi(argv[1]);
+    }
+
+    struct ring_buffer *exec_buf;
+    struct perf_buffer *pb;
+
+    if (OPT == 1 || OPT == 2) {
+        exec_buf = load_sus_execution();
+    }
+
+    if (OPT == 3) {
+        pb = load_sus_fanning();
+    }
 
     while (1) {
-        ring_buffer__poll(exec_buf, 1000);
-        // perf_buffer__poll(pb, 100);
+        if (OPT == 1 || OPT == 2) {
+            ring_buffer__poll(exec_buf, 1000);
+        }
+        if (OPT == 3) {
+            perf_buffer__poll(pb, 100);
+        }
     }
 }

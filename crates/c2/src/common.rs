@@ -559,8 +559,16 @@ pub struct Aes256ShareMessage {
     pub machine_id: String
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
+pub enum FastChannelMessageType {
+    DATA,
+    REQUEST_DATA,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FastChannelMessage {
+    pub msgtype: FastChannelMessageType,
+    pub originip: SocketAddr,
     // Aes256ShareMessage, RSA encrypted
     pub share: Vec<u8>,
     // CommandExecutionMessage, AES-GCM encrypted

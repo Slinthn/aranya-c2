@@ -18,6 +18,8 @@ machine-uid = { workspace = true }
 hex = { workspace = true }
 
 c2 = { path = "../c2" }
+s2n-quic.workspace = true
+bytes.workspace = true
 
 [profile.release]
 strip = true

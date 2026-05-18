@@ -1669,6 +1669,7 @@ dependencies = [
  "aranya-crypto",
  "aranya-policy-ifgen",
  "aranya-runtime",
+ "bytes",
  "c2",
  "dns-lookup",
  "hex",
@@ -1676,6 +1677,7 @@ dependencies = [
  "postcard",
  "rand 0.10.1",
  "rsa",
+ "s2n-quic",
  "tokio",
  "tracing-subscriber",
 ]
